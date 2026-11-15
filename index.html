@@ -1,0 +1,2661 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body><title>Recon Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two ledgers facing each other (A left, B right), the matching rules between them, and the breaks below like a reconciliation sheet. */
+:root {
+  --paper: #f2f5f4;
+  --surface: #ffffff;
+  --sunken: #ebf0ee;
+  --ink: #14211e;
+  --muted: #56655f;
+  --line: #d5dfdb;
+  --accent: #11695a;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfefea;
+  --a: #2f5d9c;
+  --a-soft: #e3ebf6;
+  --b: #8a4f1d;
+  --b-soft: #f5e9dc;
+  --err: #b42318;
+  --err-bg: #fde7e4;
+  --warn: #8a5300;
+  --warn-bg: #fff1cc;
+  --ok: #1d7a46;
+  --ok-bg: #e2f4ea;
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1514; --surface: #151f1d; --sunken: #1b2725; --ink: #e3ece9; --muted: #98aaa4; --line: #283633;
+    --accent: #5cc4ae; --accent-ink: #08201b; --accent-soft: #173832;
+    --a: #8db4ec; --a-soft: #1b2a40; --b: #e2a670; --b-soft: #3a2817;
+    --err: #ff8a7a; --err-bg: #3a1b18; --warn: #f2c04d; --warn-bg: #352a10; --ok: #6fd39b; --ok-bg: #163324; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1514; --surface: #151f1d; --sunken: #1b2725; --ink: #e3ece9; --muted: #98aaa4; --line: #283633;
+  --accent: #5cc4ae; --accent-ink: #08201b; --accent-soft: #173832;
+  --a: #8db4ec; --a-soft: #1b2a40; --b: #e2a670; --b-soft: #3a2817;
+  --err: #ff8a7a; --err-bg: #3a1b18; --warn: #f2c04d; --warn-bg: #352a10; --ok: #6fd39b; --ok-bg: #163324; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--f-ui); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-mono); font-size: .86em; }
+.num { font-variant-numeric: tabular-nums; }
+
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding-block: 14px; }
+.top h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.top h1 span { color: var(--accent); }
+.top p { margin: 0; color: var(--muted); }
+
+.note { margin-top: 16px; border-radius: 8px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); background: var(--surface); }
+.note.sample { border-color: var(--accent); background: var(--accent-soft); }
+.note.problem { border-color: var(--err); background: var(--err-bg); color: var(--err); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { background: var(--sunken); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.icon-btn { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 13px; }
+.icon-btn:hover { color: var(--ink); background: var(--sunken); }
+
+/* sources */
+.sources { display: grid; grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); gap: 12px; align-items: stretch; margin-top: 16px; }
+@media (max-width: 760px) { .sources { grid-template-columns: minmax(0, 1fr); } .vs { display: none; } }
+.src { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; border-top: 4px solid var(--a); min-width: 0; }
+.src.b { border-top-color: var(--b); }
+.src .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+.tag { font: 600 12px/1 var(--f-mono); padding: 5px 8px; border-radius: 4px; background: var(--a-soft); color: var(--a); }
+.src.b .tag { background: var(--b-soft); color: var(--b); }
+.src .file { font-weight: 600; overflow-wrap: anywhere; }
+.src .meta { font-size: 13px; color: var(--muted); }
+.src .ctl { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 8px; }
+.vs { display: grid; place-items: center; color: var(--muted); font: 600 13px var(--f-mono); }
+label.lbl { display: grid; gap: 4px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+select, input[type=number], input[type=text] { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--surface); min-width: 0; }
+
+/* setup */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel > header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.panel > header h2 { font-size: 16px; font-weight: 600; }
+.setup { margin-top: 16px; }
+.setup .body { padding: 12px 16px; display: grid; gap: 14px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pairs { display: grid; gap: 8px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 100px 100px 130px 30px; gap: 8px; align-items: center; }
+.pair.key { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 30px; }
+.pair .eq { text-align: center; color: var(--muted); font-family: var(--f-mono); }
+.pair .chk { display: flex; gap: 6px; align-items: center; font-size: 13px; white-space: nowrap; }
+.pair select.a { border-left: 3px solid var(--a); }
+.pair select.b { border-left: 3px solid var(--b); }
+@media (max-width: 760px) {
+  .pair, .pair.key { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pair .eq { display: none; }
+}
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; }
+.opts label { display: flex; gap: 6px; align-items: center; }
+.opts .grp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.opts .grp select { width: auto; max-width: 180px; }
+
+/* results */
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+@media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tiles .tile:first-child { grid-column: 1 / -1; } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; border-top: 3px solid var(--line); cursor: pointer; text-align: left; }
+.tile:hover { background: var(--sunken); }
+.tile b { display: block; font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 13px; color: var(--muted); }
+.tile.ok { border-top-color: var(--ok); } .tile.ok b { color: var(--ok); }
+.tile.err { border-top-color: var(--err); } .tile.err b { color: var(--err); }
+.tile.warn { border-top-color: var(--warn); } .tile.warn b { color: var(--warn); }
+.tile[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+@media (max-width: 960px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.tbl-wrap { overflow-x: auto; }
+table.totals { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.totals th, table.totals td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.totals th:first-child, table.totals td:first-child { text-align: left; }
+table.totals thead th { font-size: 12px; color: var(--muted); font-weight: 600; }
+table.totals td.bad { color: var(--err); font-weight: 600; }
+table.totals td.good { color: var(--ok); }
+.panel .foot { padding: 10px 16px; font-size: 13px; color: var(--muted); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.items { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow: auto; }
+.item { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; border-left: 4px solid var(--err); }
+.item.warn { border-left-color: var(--warn); }
+.item.ok { border-left-color: var(--ok); }
+.item .line1 { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.badge { font: 600 11px/1 var(--f-ui); text-transform: uppercase; letter-spacing: .05em; padding: 4px 7px; border-radius: 4px; background: var(--err-bg); color: var(--err); }
+.item.warn .badge { background: var(--warn-bg); color: var(--warn); }
+.item.ok .badge { background: var(--ok-bg); color: var(--ok); }
+.item .key { font-family: var(--f-mono); font-size: 13px; overflow-wrap: anywhere; }
+.item .rows { font-size: 12.5px; color: var(--muted); }
+.item .why { font-weight: 500; }
+.cmp { overflow-x: auto; }
+.cmp table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cmp th, .cmp td { padding: 3px 10px 3px 0; text-align: left; white-space: nowrap; }
+.cmp th { font-weight: 500; color: var(--muted); font-size: 12px; }
+.cmp td.a { color: var(--a); } .cmp td.b { color: var(--b); }
+.cmp tr.diff td { font-weight: 600; }
+.cmp tr.diff td.d { color: var(--err); }
+.more { padding: 12px 16px; }
+.empty { padding: 28px 16px; text-align: center; color: var(--ok); font-weight: 600; }
+
+.dl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); }
+.dl .hint { font-size: 13px; color: var(--muted); }
+footer.foot { padding-block: 20px 32px; color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="top"><div class="wrap">
+  <h1>Recon<span>.</span></h1>
+  <p>Two-sided reconciliation for Excel and CSV: ledger against statement, export against export.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="note" id="banner"></div>
+
+  <div class="sources">
+    <section class="src" id="srcA" aria-label="Side A"></section>
+    <div class="vs">vs</div>
+    <section class="src b" id="srcB" aria-label="Side B"></section>
+  </div>
+
+  <section class="panel setup" aria-labelledby="setupTitle">
+    <header><h2 id="setupTitle">How to match</h2><button class="btn small" id="autoMap" type="button">Suggest again from columns</button></header>
+    <div class="body">
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Match rows on</div>
+        <div class="pairs" id="keys"></div>
+        <div class="row-actions" style="margin-top:8px"><button class="btn small" id="addKey" type="button">+ Add column to the match</button><span class="muted" style="font-size:13px" id="keyHint"></span></div>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Then compare</div>
+        <div class="pairs" id="compares"></div>
+        <div class="row-actions" style="margin-top:8px"><button class="btn small" id="addCmp" type="button">+ Compare another column</button></div>
+      </div>
+      <div class="opts">
+        <div class="grp"><span>Totals of</span><select id="amtA" aria-label="Amount column A"></select><span>=</span><select id="amtB" aria-label="Amount column B"></select></div>
+        <div class="grp"><span>per</span><select id="grpA" aria-label="Group column A"></select><span>=</span><select id="grpB" aria-label="Group column B"></select></div>
+        <label><input type="checkbox" id="fallback"> Pair rows without a matching ID when all compared values agree</label>
+      </div>
+    </div>
+  </section>
+
+  <div class="note problem" id="problems" hidden></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="totTitle">
+      <header><h2 id="totTitle">Totals</h2><span class="muted" style="font-size:13px">B − A</span></header>
+      <div class="tbl-wrap" id="totals"></div>
+      <div class="foot" id="totFoot"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="brkTitle">
+      <header><h2 id="brkTitle">Breaks</h2><div class="filters" id="filters"></div></header>
+      <ul class="items" id="items"></ul>
+      <div class="dl">
+        <span class="hint" id="dlHint">The workbook has a summary, totals, every break side by side, matched pairs and both sheets with breaks colored.</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="dlCsv" type="button">Breaks (.csv)</button>
+          <button class="btn primary" id="dlXlsx" type="button">Recon workbook (.xlsx)</button>
+        </span>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">Files are read in your browser and never uploaded. Opens .xlsx, .xlsm, .xlsb, .xls, .ods, .csv and .tsv. Both sides can be two tabs of one workbook or two separate files.</footer>
+</div>
+
+<input type="file" id="fileA" hidden accept=".xlsx,.xlsm,.xlsb,.xls,.xltx,.ods,.fods,.csv,.tsv,.txt">
+<input type="file" id="fileB" hidden accept=".xlsx,.xlsm,.xlsb,.xls,.xltx,.ods,.fods,.csv,.tsv,.txt">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/**
+ * Sheet — rule engine.
+ *
+ * Pure JavaScript with no Apps Script services, so the same file runs inside
+ * Google Sheets (Apps Script V8) and in Node for tests.
+ *
+ * A rule is a plain object:
+ *   { sheet, column, check, param, severity: 'error' | 'warning', description }
+ * A table is:
+ *   { sheetName, headers: [...], rows: [[...], ...], firstDataRow: 2 }
+ */
+var SheetEngine = (function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // Check catalogue (also used for the sidebar help and the Claude prompt)
+  // ---------------------------------------------------------------------------
+  var CHECKS = {
+    required:        { scope: 'cell',   param: '', help: 'Cell must not be empty.' },
+    number:          { scope: 'cell',   param: '', help: 'Must be a real number. Flags numbers stored as text such as "1.250,00".' },
+    range:           { scope: 'cell',   param: 'min..max, e.g. 0..5, 0.. or ..1000', help: 'Number must lie within the range (inclusive).' },
+    decimals:        { scope: 'cell',   param: 'max decimal places, e.g. 2', help: 'Number may have at most N decimal places.' },
+    date:            { scope: 'cell',   param: '', help: 'Must be a valid date (date cell, YYYY-MM-DD or DD.MM.YYYY).' },
+    not_future:      { scope: 'cell',   param: '', help: 'Date must not be in the future.' },
+    compare:         { scope: 'cell',   param: 'operator and column, e.g. >= Start date', help: 'Compare with another column in the same row (>, >=, <, <=, =, !=).' },
+    allowed:         { scope: 'cell',   param: 'comma-separated list, e.g. EUR, USD', help: 'Value must be one of the listed values (case-insensitive).' },
+    regex:           { scope: 'cell',   param: 'regular expression, e.g. ^P-\\d{4}$', help: 'Value must match the pattern.' },
+    length:          { scope: 'cell',   param: 'exact or min..max, e.g. 11 or 8..11', help: 'Text length must match.' },
+    email:           { scope: 'cell',   param: '', help: 'Must look like an e-mail address.' },
+    iban:            { scope: 'cell',   param: '', help: 'Valid IBAN: country length and checksum (catches typos).' },
+    bic:             { scope: 'cell',   param: '', help: 'Valid BIC/SWIFT format.' },
+    unique:          { scope: 'column', param: 'optional extra columns, e.g. Date, Currency', help: 'No duplicates, optionally for a combination of columns.' },
+    fuzzy_duplicate: { scope: 'column', param: '', help: 'Near-duplicates, e.g. "Müller & Söhne GmbH" vs "Mueller und Soehne".' },
+    sum_equals:      { scope: 'column', param: 'number or cell, e.g. 12500 or Bank!B2', help: 'Column total must equal a target (reconciliation).' },
+    freshness:       { scope: 'column', param: 'days, e.g. 7', help: 'Newest date in the column must be at most N days old.' },
+    min_rows:        { scope: 'table',  param: 'number, e.g. 10', help: 'Sheet must have at least N data rows. No column needed.' },
+    no_extra_spaces: { scope: 'cell',   param: '', help: 'No leading, trailing or double spaces (they break lookups and matching).' },
+    outlier:         { scope: 'column', param: 'sensitivity, e.g. 3 (higher = fewer flags)', help: 'Numbers far outside the usual range of the column (interquartile rule).' }
+  };
+
+  function checkNames() { return Object.keys(CHECKS); }
+
+  function checkList() {
+    return Object.keys(CHECKS).map(function (k) {
+      return { name: k, scope: CHECKS[k].scope, param: CHECKS[k].param, help: CHECKS[k].help };
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Value helpers
+  // ---------------------------------------------------------------------------
+  function isDate(v) { return Object.prototype.toString.call(v) === '[object Date]'; }
+
+  function isBlank(v) {
+    return v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+  }
+
+  /** Parses numbers, including German-formatted text like "1.250,00". */
+  function toNumber(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : NaN;
+    if (v === null || v === undefined || typeof v === 'boolean' || isDate(v)) return NaN;
+    var s = String(v).trim().replace(/[\s€$£%]/g, '');
+    if (s === '') return NaN;
+    var lastDot = s.lastIndexOf('.');
+    var lastComma = s.lastIndexOf(',');
+    if (lastDot > -1 && lastComma > -1) {
+      s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+    } else if (lastComma > -1) {
+      s = (s.match(/,/g) || []).length === 1 ? s.replace(',', '.') : s.replace(/,/g, '');
+    }
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)) return NaN;
+    return parseFloat(s);
+  }
+
+  /** Accepts Date objects, YYYY-MM-DD[ hh:mm[:ss]] and DD.MM.YYYY / DD/MM/YYYY. */
+  function toDate(v) {
+    if (isDate(v)) return isNaN(v.getTime()) ? null : v;
+    if (typeof v !== 'string') return null;
+    var s = v.trim();
+    var m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (m) return makeDate(+m[1], +m[2], +m[3], m[4], m[5], m[6]);
+    m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (m) return makeDate(+m[3], +m[2], +m[1], m[4], m[5], m[6]);
+    return null;
+  }
+
+  function makeDate(y, mo, d, h, mi, se) {
+    var dt = new Date(y, mo - 1, d, +(h || 0), +(mi || 0), +(se || 0));
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function display(v) {
+    if (isDate(v)) return v.getFullYear() + '-' + pad(v.getMonth() + 1) + '-' + pad(v.getDate());
+    if (v === null || v === undefined) return '';
+    return String(v);
+  }
+
+  function fmtNum(n) { return String(Math.round(n * 100) / 100); }
+
+  // ---------------------------------------------------------------------------
+  // Identifier validation
+  // ---------------------------------------------------------------------------
+  var IBAN_LENGTHS = {
+    AD: 24, AT: 20, BE: 16, BG: 22, CH: 21, CY: 28, CZ: 24, DE: 22, DK: 18, EE: 20,
+    ES: 24, FI: 18, FR: 27, GB: 22, GI: 23, GR: 27, HR: 21, HU: 28, IE: 22, IS: 26,
+    IT: 27, LI: 21, LT: 20, LU: 20, LV: 21, MC: 27, MT: 31, NL: 18, NO: 15, PL: 28,
+    PT: 25, RO: 24, SE: 24, SI: 19, SK: 24, SM: 27
+  };
+
+  function mod97(str) {
+    var rem = 0;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charAt(i);
+      var code = /[0-9]/.test(ch) ? ch : String(ch.charCodeAt(0) - 55);
+      for (var j = 0; j < code.length; j++) rem = (rem * 10 + (+code.charAt(j))) % 97;
+    }
+    return rem;
+  }
+
+  function ibanProblem(v) {
+    var s = String(v).replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(s)) return 'Not in IBAN format';
+    var expected = IBAN_LENGTHS[s.slice(0, 2)];
+    if (expected && s.length !== expected) {
+      return s.slice(0, 2) + ' IBANs have ' + expected + ' characters, this one has ' + s.length;
+    }
+    if (mod97(s.slice(4) + s.slice(0, 4)) !== 1) return 'IBAN checksum is wrong (probably a typo)';
+    return null;
+  }
+
+  /** Builds a valid IBAN from a country code and BBAN (used for demo data). */
+  function makeIban(country, bban) {
+    var check = 98 - mod97(bban + country + '00');
+    return country + pad(check) + bban;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fuzzy normalisation for near-duplicate names
+  // ---------------------------------------------------------------------------
+  var STOP_WORDS = ['gmbh', 'ag', 'kg', 'ug', 'ohg', 'gbr', 'mbh', 'co', 'ltd', 'limited', 'inc',
+    'llc', 'plc', 'se', 'sa', 'sarl', 'bv', 'haftungsbeschrankt', 'und', 'and', 'the'];
+
+  function fuzzyKey(v) {
+    var s = String(v).toLowerCase()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+    if (s.normalize) s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var tokens = s.replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(function (t) {
+      return t && STOP_WORDS.indexOf(t) === -1;
+    });
+    tokens.sort();
+    return tokens.join(' ');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parameter parsing
+  // ---------------------------------------------------------------------------
+  function ConfigError(msg) { this.message = msg; this.isConfig = true; }
+
+  function parseRange(p, what) {
+    var m = String(p).trim().match(/^(-?[\d.,]*)\s*\.\.\s*(-?[\d.,]*)$/);
+    if (!m || (m[1] === '' && m[2] === '')) throw new ConfigError(what + ' must look like 0..5, 0.. or ..5');
+    var min = m[1] === '' ? null : toNumber(m[1]);
+    var max = m[2] === '' ? null : toNumber(m[2]);
+    if ((min !== null && isNaN(min)) || (max !== null && isNaN(max))) throw new ConfigError(what + ' contains something that is not a number');
+    return { min: min, max: max };
+  }
+
+  function parsePositiveInt(p, what) {
+    var n = parseInt(String(p).trim(), 10);
+    if (isNaN(n) || n < 0) throw new ConfigError(what + ' must be a whole number');
+    return n;
+  }
+
+  function lookupColumn(headerIdx, name) {
+    var key = String(name).trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(headerIdx, key) ? headerIdx[key] : -1;
+  }
+
+  function comparable(v) {
+    var d = toDate(v);
+    if (d) return { type: 'date', v: d.getTime() };
+    var n = toNumber(v);
+    if (!isNaN(n)) return { type: 'number', v: n };
+    return { type: 'text', v: String(v).trim().toLowerCase() };
+  }
+
+  var OPS = {
+    '>':  function (a, b) { return a > b; },
+    '>=': function (a, b) { return a >= b; },
+    '<':  function (a, b) { return a < b; },
+    '<=': function (a, b) { return a <= b; },
+    '=':  function (a, b) { return a === b; },
+    '!=': function (a, b) { return a !== b; }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Cell checks: return a function(value, rowArray) -> message | null
+  // ---------------------------------------------------------------------------
+  function buildCellTest(rule, headerIdx, now, opts) {
+    opts = opts || {};
+    var p = rule.param === undefined || rule.param === null ? '' : String(rule.param).trim();
+    switch (rule.check) {
+      case 'required':
+        return function (v) { return isBlank(v) ? 'Missing value' : null; };
+
+      case 'number':
+        return function (v) {
+          if (typeof v === 'number') return null;
+          if (isNaN(toNumber(v))) return 'Not a number';
+          return opts.textInput ? null : 'Number stored as text';   // CSV cells are always text
+        };
+
+      case 'range': {
+        var r = parseRange(p, 'Range');
+        return function (v) {
+          var n = toNumber(v);
+          if (isNaN(n)) return 'Not a number, so the range cannot be checked';
+          if (r.min !== null && n < r.min) return 'Below the minimum of ' + r.min;
+          if (r.max !== null && n > r.max) return 'Above the maximum of ' + r.max;
+          return null;
+        };
+      }
+
+      case 'decimals': {
+        var places = parsePositiveInt(p, 'Decimals');
+        var f = Math.pow(10, places);
+        return function (v) {
+          var n = toNumber(v);
+          if (isNaN(n)) return 'Not a number';
+          return Math.abs(n * f - Math.round(n * f)) > 1e-6 ? 'More than ' + places + ' decimal places' : null;
+        };
+      }
+
+      case 'date':
+        return function (v) { return toDate(v) ? null : 'Not a valid date'; };
+
+      case 'not_future': {
+        var endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        return function (v) {
+          var d = toDate(v);
+          if (!d) return 'Not a valid date';
+          return d > endOfToday ? 'Date is in the future' : null;
+        };
+      }
+
+      case 'compare': {
+        var m = p.match(/^(>=|<=|!=|==|=|>|<)\s*(.+)$/);
+        if (!m) throw new ConfigError('Compare needs an operator and a column, e.g. ">= Start date"');
+        var op = m[1] === '==' ? '=' : m[1];
+        var otherName = m[2].trim();
+        var otherIdx = lookupColumn(headerIdx, otherName);
+        if (otherIdx < 0) throw new ConfigError('Column "' + otherName + '" not found');
+        return function (v, row) {
+          var o = row[otherIdx];
+          if (isBlank(o)) return null;
+          var a = comparable(v), b = comparable(o);
+          if (a.type !== b.type) return 'Cannot compare with ' + otherName + ' ("' + display(o) + '")';
+          return OPS[op](a.v, b.v) ? null : 'Should be ' + op + ' ' + otherName + ' (' + display(o) + ')';
+        };
+      }
+
+      case 'allowed': {
+        var list = p.split(/[,;|]/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (!list.length) throw new ConfigError('List the allowed values, e.g. "EUR, USD"');
+        var lower = list.map(function (s) { return s.toLowerCase(); });
+        var listNums = list.map(function (s) { return /^-?[\d.,]+$/.test(s) ? toNumber(s) : NaN; });
+        return function (v) {
+          if (lower.indexOf(display(v).trim().toLowerCase()) > -1) return null;
+          var x = typeof v === 'number' ? v : (/^\s*-?[\d.,]+\s*$/.test(String(v)) ? toNumber(v) : NaN);
+          if (!isNaN(x) && listNums.some(function (y) { return !isNaN(y) && Math.abs(x - y) < 1e-9; })) return null;
+          return 'Not an allowed value (allowed: ' + list.join(', ') + ')';
+        };
+      }
+
+      case 'regex': {
+        var re;
+        try { re = new RegExp(p); } catch (e) { throw new ConfigError('Invalid pattern: ' + e.message); }
+        return function (v) { return re.test(display(v)) ? null : 'Does not match the expected pattern'; };
+      }
+
+      case 'length': {
+        var lr = /\.\./.test(p) ? parseRange(p, 'Length') : (function () {
+          var n = parsePositiveInt(p, 'Length');
+          return { min: n, max: n };
+        })();
+        return function (v) {
+          var len = display(v).trim().length;
+          if (lr.min !== null && len < lr.min) return 'Too short (' + len + ' characters, expected ' + (lr.min === lr.max ? lr.min : 'at least ' + lr.min) + ')';
+          if (lr.max !== null && len > lr.max) return 'Too long (' + len + ' characters, expected ' + (lr.min === lr.max ? lr.max : 'at most ' + lr.max) + ')';
+          return null;
+        };
+      }
+
+      case 'email':
+        return function (v) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$/.test(display(v).trim()) ? null : 'Not a valid e-mail address';
+        };
+
+      case 'iban':
+        return function (v) { return ibanProblem(v); };
+
+      case 'no_extra_spaces':
+        return function (v) {
+          if (typeof v !== 'string') return null;
+          if (/^\s|\s$/.test(v)) return 'Leading or trailing space';
+          if (/\S\s{2,}\S/.test(v)) return 'Double space inside the value';
+          return null;
+        };
+
+      case 'bic':
+        return function (v) {
+          return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(display(v).replace(/\s+/g, '').toUpperCase()) ? null : 'Not a valid BIC';
+        };
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Running rules
+  // ---------------------------------------------------------------------------
+  function describe(rule) {
+    if (rule.description) return rule.description;
+    return [rule.column, rule.check, rule.param].filter(function (x) { return x !== undefined && x !== null && String(x) !== ''; }).join(' ');
+  }
+
+  function configIssue(rule, message) {
+    return {
+      sheet: rule.sheet || '', row: null, column: rule.column || '', colIndex: -1, value: '',
+      check: rule.check, severity: 'config', message: 'Rule problem: ' + message, rule: describe(rule)
+    };
+  }
+
+  function issue(rule, row, colIdx, value, message) {
+    return {
+      sheet: rule.sheet || '', row: row, column: rule.column || '', colIndex: colIdx, value: value,
+      check: rule.check, severity: rule.severity === 'warning' ? 'warning' : 'error',
+      message: message, rule: describe(rule)
+    };
+  }
+
+  /** opts: { now: Date, textInput: true when every cell is text (CSV) } */
+  function runRules(table, rules, opts) {
+    opts = opts || {};
+    var now = opts.now || new Date();
+    var first = table.firstDataRow || 2;
+    var headers = table.headers || [];
+    var rows = table.rows || [];
+
+    var headerIdx = {};
+    headers.forEach(function (h, i) {
+      var k = String(h).trim().toLowerCase();
+      if (k && !Object.prototype.hasOwnProperty.call(headerIdx, k)) headerIdx[k] = i;
+    });
+
+    var dataRows = [];
+    rows.forEach(function (r, i) {
+      if (r.some(function (v) { return !isBlank(v); })) dataRows.push(i);
+    });
+
+    var issues = [];
+
+    rules.forEach(function (rawRule) {
+      var rule = {};
+      for (var k in rawRule) rule[k] = rawRule[k];
+      rule.sheet = rule.sheet || table.sheetName || '';
+      rule.check = String(rule.check || '').trim().toLowerCase();
+      rule.severity = String(rule.severity || 'error').trim().toLowerCase();
+      try {
+        var def = CHECKS[rule.check];
+        if (!def) throw new ConfigError('Unknown check "' + rule.check + '"');
+        var colIdx = -1;
+        if (def.scope !== 'table') {
+          if (isBlank(rule.column)) throw new ConfigError('No column given');
+          colIdx = lookupColumn(headerIdx, rule.column);
+          if (colIdx < 0) throw new ConfigError('Column "' + rule.column + '" not found in sheet "' + rule.sheet + '"');
+          rule.column = String(headers[colIdx]).trim();
+        }
+
+        if (def.scope === 'cell') {
+          var test = buildCellTest(rule, headerIdx, now, opts);
+          dataRows.forEach(function (i) {
+            var v = rows[i][colIdx];
+            if (rule.check !== 'required' && isBlank(v)) return;
+            var msg = test(v, rows[i]);
+            if (msg) issues.push(issue(rule, first + i, colIdx, v, msg));
+          });
+        } else {
+          runColumnRule(rule, colIdx, rows, dataRows, headerIdx, first, now, issues);
+        }
+      } catch (e) {
+        if (e && e.isConfig) issues.push(configIssue(rule, e.message));
+        else throw e;
+      }
+    });
+
+    issues.sort(sortIssues);
+    return { issues: issues, stats: statsFor(issues, rules.length, dataRows.length) };
+  }
+
+  function runColumnRule(rule, colIdx, rows, dataRows, headerIdx, first, now, issues) {
+    var p = rule.param === undefined || rule.param === null ? '' : String(rule.param).trim();
+    switch (rule.check) {
+      case 'unique': {
+        var cols = [colIdx];
+        var extra = p ? p.split(/[,;]/).map(function (s) { return s.trim(); }).filter(Boolean) : [];
+        extra.forEach(function (name) {
+          var ix = lookupColumn(headerIdx, name);
+          if (ix < 0) throw new ConfigError('Column "' + name + '" not found');
+          cols.push(ix);
+        });
+        var seen = {};
+        dataRows.forEach(function (i) {
+          var parts = cols.map(function (c) {
+            var v = rows[i][c];
+            if (isDate(v)) return 'd' + v.getTime();
+            return isBlank(v) ? '' : String(v).trim().toLowerCase();
+          });
+          if (parts.every(function (x) { return x === ''; })) return;
+          var key = parts.join('\u241f');
+          if (Object.prototype.hasOwnProperty.call(seen, key)) {
+            issues.push(issue(rule, first + i, colIdx, rows[i][colIdx], 'Duplicate of row ' + seen[key]));
+          } else {
+            seen[key] = first + i;
+          }
+        });
+        return;
+      }
+
+      case 'fuzzy_duplicate': {
+        // Group values that normalise to the same key; within a group the most
+        // common exact spelling is "right" and every other spelling is flagged.
+        // Exact repeats (the same customer on many rows) are not flagged.
+        var groups = {};
+        dataRows.forEach(function (i) {
+          var v = rows[i][colIdx];
+          if (isBlank(v)) return;
+          var key = fuzzyKey(v);
+          if (!key) return;
+          var exact = display(v).trim().replace(/\s+/g, ' ');
+          var g = groups[key] || (groups[key] = { order: [], variants: {} });
+          if (!g.variants[exact]) { g.variants[exact] = { count: 0, firstRow: first + i, rows: [] }; g.order.push(exact); }
+          g.variants[exact].count++;
+          g.variants[exact].rows.push({ row: first + i, value: v });
+        });
+        Object.keys(groups).forEach(function (key) {
+          var g = groups[key];
+          if (g.order.length < 2) return;
+          var main = g.order.reduce(function (best, x) { return g.variants[x].count > g.variants[best].count ? x : best; }, g.order[0]);
+          g.order.forEach(function (x) {
+            if (x === main) return;
+            g.variants[x].rows.forEach(function (r) {
+              issues.push(issue(rule, r.row, colIdx, r.value, 'Looks like the same as row ' + g.variants[main].firstRow + ' ("' + main + '")'));
+            });
+          });
+        });
+        return;
+      }
+
+      case 'sum_equals': {
+        var targetRaw = rule.resolvedParam !== undefined && rule.resolvedParam !== null ? rule.resolvedParam : p;
+        var target = toNumber(targetRaw);
+        if (isNaN(target)) throw new ConfigError('Target "' + p + '" is not a number or a readable cell');
+        var sum = 0, skipped = 0;
+        dataRows.forEach(function (i) {
+          var v = rows[i][colIdx];
+          if (isBlank(v)) return;
+          var n = toNumber(v);
+          if (isNaN(n)) skipped++; else sum += n;
+        });
+        var diff = sum - target;
+        if (Math.abs(diff) > 0.005) {
+          issues.push(issue(rule, null, colIdx, fmtNum(sum),
+            'Column total ' + fmtNum(sum) + ' does not match target ' + fmtNum(target) +
+            ' (difference ' + (diff > 0 ? '+' : '') + fmtNum(diff) + ')' +
+            (skipped ? '; ' + skipped + ' non-numeric cell(s) ignored' : '')));
+        }
+        return;
+      }
+
+      case 'freshness': {
+        var days = parsePositiveInt(p, 'Freshness');
+        var newest = null;
+        dataRows.forEach(function (i) {
+          var d = toDate(rows[i][colIdx]);
+          if (d && (!newest || d > newest)) newest = d;
+        });
+        if (!newest) {
+          issues.push(issue(rule, null, colIdx, '', 'No valid dates found'));
+          return;
+        }
+        var age = Math.floor((now.getTime() - newest.getTime()) / 86400000);
+        if (age > days) {
+          issues.push(issue(rule, null, colIdx, display(newest),
+            'Newest entry is from ' + display(newest) + ' (' + age + ' days old, limit ' + days + ')'));
+        }
+        return;
+      }
+
+      case 'outlier': {
+        var k = p === '' ? 3 : toNumber(p);
+        if (isNaN(k) || k <= 0) throw new ConfigError('Sensitivity must be a positive number, e.g. 3');
+        var vals = [];
+        dataRows.forEach(function (i) { var x = toNumber(rows[i][colIdx]); if (!isNaN(x)) vals.push(x); });
+        if (vals.length < 8) return;
+        var sorted = vals.slice().sort(function (a, b) { return a - b; });
+        var q = function (f) { var pos = (sorted.length - 1) * f, lo = Math.floor(pos), hi = Math.ceil(pos); return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo); };
+        var q1 = q(0.25), q3 = q(0.75), iqr = q3 - q1;
+        if (iqr <= 0) return;
+        var lowB = q1 - k * iqr, highB = q3 + k * iqr;
+        dataRows.forEach(function (i) {
+          var x = toNumber(rows[i][colIdx]);
+          if (isNaN(x)) return;
+          if (x < lowB || x > highB) issues.push(issue(rule, first + i, colIdx, rows[i][colIdx],
+            'Unusual value: most values are between ' + fmtNum(q1) + ' and ' + fmtNum(q3)));
+        });
+        return;
+      }
+
+      case 'min_rows': {
+        var minRows = parsePositiveInt(p, 'Minimum rows');
+        if (dataRows.length < minRows) {
+          issues.push(issue(rule, null, -1, String(dataRows.length),
+            'Only ' + dataRows.length + ' data rows, expected at least ' + minRows));
+        }
+        return;
+      }
+    }
+  }
+
+  var SEV_ORDER = { config: 0, error: 1, warning: 2 };
+
+  function sortIssues(a, b) {
+    if (SEV_ORDER[a.severity] !== SEV_ORDER[b.severity]) return SEV_ORDER[a.severity] - SEV_ORDER[b.severity];
+    if (a.sheet !== b.sheet) return a.sheet < b.sheet ? -1 : 1;
+    return (a.row || 0) - (b.row || 0);
+  }
+
+  function statsFor(issues, ruleCount, rowCount) {
+    var s = { rules: ruleCount, rows: rowCount, errors: 0, warnings: 0, config: 0 };
+    issues.forEach(function (i) {
+      if (i.severity === 'error') s.errors++;
+      else if (i.severity === 'warning') s.warnings++;
+      else s.config++;
+    });
+    return s;
+  }
+
+  function issueKey(i) {
+    return [i.sheet, i.row, i.column, i.check, display(i.value), i.message].join('|');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Validating rules that come from outside (e.g. Claude)
+  // ---------------------------------------------------------------------------
+  function validateRules(candidates, headersBySheet) {
+    var sheetNames = Object.keys(headersBySheet);
+    var out = [];
+    (candidates || []).forEach(function (c) {
+      if (!c || !CHECKS[String(c.check || '').toLowerCase()]) return;
+      var check = String(c.check).toLowerCase();
+      var sheet = sheetNames.filter(function (n) { return n.toLowerCase() === String(c.sheet || '').trim().toLowerCase(); })[0];
+      if (!sheet && sheetNames.length === 1) sheet = sheetNames[0];
+      if (!sheet) return;
+      var column = '';
+      if (CHECKS[check].scope !== 'table') {
+        column = (headersBySheet[sheet] || []).filter(function (h) {
+          return String(h).trim().toLowerCase() === String(c.column || '').trim().toLowerCase();
+        })[0];
+        if (!column) return;
+        column = String(column).trim();
+      }
+      out.push({
+        sheet: sheet, column: column, check: check,
+        param: c.param === undefined || c.param === null ? '' : String(c.param),
+        severity: String(c.severity || '').toLowerCase() === 'warning' ? 'warning' : 'error',
+        description: c.description ? String(c.description) : ''
+      });
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Offline plain-language parser (English + German). Claude does this better;
+  // this keeps the add-on useful without an API key.
+  // ---------------------------------------------------------------------------
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function findColumns(text, headers) {
+    var t = text.toLowerCase();
+    var found = [];
+    headers.map(function (h) { return String(h).trim(); }).filter(Boolean)
+      .sort(function (a, b) { return b.length - a.length; })
+      .forEach(function (h) {
+        var re = new RegExp('(^|[^a-z0-9äöüß])' + escapeRe(h.toLowerCase()) + '(?=$|[^a-z0-9äöüß])', 'g');
+        var m;
+        while ((m = re.exec(t)) !== null) {
+          var start = m.index + m[1].length, end = start + h.length;
+          var overlaps = found.some(function (f) { return start < f.end && end > f.start; });
+          if (!overlaps) found.push({ header: h, start: start, end: end });
+        }
+      });
+    found.sort(function (a, b) { return a.start - b.start; });
+    var seen = {}, out = [];
+    found.forEach(function (f) { if (!seen[f.header]) { seen[f.header] = true; out.push(f.header); } });
+    return out;
+  }
+
+  function textNum(s) {
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) return parseFloat(s.replace(/,/g, ''));
+    return toNumber(s);
+  }
+
+  var NUM = '(-?\\d+(?:[.,]\\d+)*)';
+
+  function parseRuleText(text, headers) {
+    if (isBlank(text)) return null;
+    var original = String(text).trim();
+    var t = original.toLowerCase();
+    var cols = findColumns(original, headers || []);
+    var column = cols[0] || '';
+    var severity = /\b(warn|warning|warnung|hinweis)\b/.test(t) ? 'warning' : 'error';
+    var m;
+
+    function rule(check, param, needsColumn) {
+      if (needsColumn !== false && !column) return null;
+      return { column: needsColumn === false ? '' : column, check: check, param: param === undefined ? '' : String(param), severity: severity, description: original };
+    }
+
+    if ((m = t.match(new RegExp('(?:at least|mindestens|min(?:imum)?)\\s*' + NUM + '\\s*(?:data\\s*)?(?:rows|zeilen|entries|einträge|records|lines)'))))
+      return rule('min_rows', textNum(m[1]), false);
+
+    if (/(updat|refresh|aktualis|fresh|older|älter|within|innerhalb|newest|neueste|latest)/.test(t) &&
+        (m = t.match(/(\d+)\s*(?:days?|tagen?)/)))
+      return rule('freshness', m[1]);
+
+    if (/(required|mandatory|must not be (?:empty|blank|missing)|can'?t be (?:empty|blank)|cannot be (?:empty|blank)|never (?:empty|blank)|always (?:be )?filled|must be filled|pflicht|darf nicht leer|muss ausgefüllt|nie leer)/.test(t))
+      return rule('required');
+
+    if (/(similar|look[- ]?alike|near[- ]?duplicate|spelling|spelled|ähnlich|tippfehler|schreibweise)/.test(t))
+      return rule('fuzzy_duplicate');
+
+    if (/(unique|no duplicates?|not (?:be )?duplicated|eindeutig|keine (?:duplikate|doppelten)|doppelt|only once|nur einmal)/.test(t)) {
+      var extra = cols.length > 1 && /(combination|together|per|with|and|kombination|zusammen|pro|und)/.test(t) ? cols.slice(1).join(', ') : '';
+      return rule('unique', extra);
+    }
+
+    if (/\b(sum|total|summe|gesamt)/.test(t) && /(equal|match|=|gleich|entspricht|entsprech|stimm|abgleich|reconcile)/.test(t)) {
+      var ref = original.match(/((?:'[^']+'|[A-Za-z0-9_]+)![A-Z]{1,3}\d+)|\b([A-Z]{1,3}\d{1,6})\b/);
+      if (ref) return rule('sum_equals', ref[0]);
+      m = t.match(new RegExp('(?:equal|match|=|gleich|entspricht|entsprech\\w*|stimmt|reconcile)[^\\d-]*' + NUM));
+      if (m) return rule('sum_equals', textNum(m[1]));
+    }
+
+    if (cols.length > 1) {
+      var op = null;
+      if (/(on or after|not before|nicht vor|am oder nach|>=|at least as (?:late|large|high))/.test(t)) op = '>=';
+      else if (/(on or before|not after|nicht nach|am oder vor|<=|at most|no later than|not later than)/.test(t)) op = '<=';
+      else if (/(!=|not equal|different from|ungleich|nicht gleich)/.test(t)) op = '!=';
+      else if (/(\bafter\b|later than|greater than|more than|higher than|larger than|\bnach\b|größer|später|höher|>)/.test(t)) op = '>';
+      else if (/(\bbefore\b|earlier than|less than|smaller than|lower than|\bvor\b|kleiner|früher|niedriger|<)/.test(t)) op = '<';
+      else if (/(equal|same as|gleich|identisch|=)/.test(t)) op = '=';
+      if (op) return rule('compare', op + ' ' + cols[1]);
+    }
+
+    if (/(extra spaces?|trailing spaces?|leading spaces?|leerzeichen|whitespace)/.test(t)) return rule('no_extra_spaces');
+    if (/(outlier|unusual|abnormal|ausreißer|auffällig|ungewöhnlich)/.test(t)) return rule('outlier', '3');
+    if (/\biban\b/.test(t)) return rule('iban');
+    if (/\b(bic|swift)\b/.test(t)) return rule('bic');
+    if (/e-?mail/.test(t)) return rule('email');
+    if (/(future|zukunft)/.test(t)) return rule('not_future');
+
+    if ((m = t.match(/(\d+)\s*(?:decimal|decimals|decimal places|nachkommastellen|nachkomma|dezimalstellen)/)))
+      return rule('decimals', m[1]);
+
+    if ((m = t.match(/(\d+)\s*(?:characters|chars|zeichen|digits|stellen|ziffern)/)))
+      return rule('length', m[1]);
+
+    if ((m = original.match(/(?:match(?:es)?|pattern|format|muster)\s*:?\s*(\^\S+)/i)))
+      return rule('regex', m[1]);
+
+    if ((m = original.match(/(?:one of|either|must be in|only|allowed(?: values)?(?: are)?|erlaubt(?: sind)?|nur|entweder)\s*:?\s*(.+)$/i))) {
+      var list = m[1].replace(/[.!]+$/, '').replace(/\s+(?:or|oder)\s+/gi, ', ')
+        .split(/[,;|/]/).map(function (s) { return s.trim(); }).filter(Boolean);
+      if (list.length) return rule('allowed', list.join(', '));
+    }
+
+    if ((m = t.match(new RegExp('(?:between|zwischen)\\s+' + NUM + '\\s*(?:%\\s*)?(?:and|und|bis|-)\\s*' + NUM))))
+      return rule('range', textNum(m[1]) + '..' + textNum(m[2]));
+
+    var min = null, max = null;
+    if ((m = t.match(new RegExp('(?:at least|minimum|min\\.?|mindestens|not less than|nicht weniger als|>=)\\s*' + NUM)))) min = textNum(m[1]);
+    if ((m = t.match(new RegExp('(?:at most|maximum|max\\.?|höchstens|maximal|not more than|nicht mehr als|<=)\\s*' + NUM)))) max = textNum(m[1]);
+    if (min === null && /(positive|not (?:be )?negative|non-negative|nicht negativ|no negative|keine negativen)/.test(t)) min = 0;
+    if (min !== null || max !== null) return rule('range', (min === null ? '' : min) + '..' + (max === null ? '' : max));
+
+    if (/\b(number|numeric|zahl|numerisch)\b/.test(t)) return rule('number');
+    if (/\b(date|datum)\b/.test(t) && /(valid|gültig|real|proper|korrekt)/.test(t)) return rule('date');
+
+    return null;
+  }
+
+  return {
+    CHECKS: CHECKS,
+    checkNames: checkNames,
+    checkList: checkList,
+    runRules: runRules,
+    configIssue: configIssue,
+    issueKey: issueKey,
+    validateRules: validateRules,
+    parseRuleText: parseRuleText,
+    display: display,
+    toNumber: toNumber,
+    toDate: toDate,
+    ibanProblem: ibanProblem,
+    makeIban: makeIban,
+    fuzzyKey: fuzzyKey
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = SheetEngine;
+
+/**
+ * Sheet Web — file handling that doesn't need the DOM:
+ * CSV parsing, SheetJS sheet → rows, header detection, rules-sheet import,
+ * and a small dependency-free .xlsx writer (highlighted copy + report).
+ */
+var SheetIO = (function () {
+  'use strict';
+
+  var RULES_SHEET = 'Sheet Rules';
+  var REPORT_SHEET = 'Sheet Report';
+  var RULE_HEADERS = ['Enabled', 'Sheet', 'Column', 'Check', 'Parameter', 'Severity', 'Description'];
+
+  // ---------------------------------------------------------------------------
+  // CSV / TSV
+  // ---------------------------------------------------------------------------
+  function detectDelimiter(text) {
+    var first = text.split(/\r?\n/).slice(0, 5).join('\n');
+    var best = ',', bestCount = -1;
+    [',', ';', '\t', '|'].forEach(function (d) {
+      var inQ = false, n = 0;
+      for (var i = 0; i < first.length; i++) {
+        var ch = first.charAt(i);
+        if (ch === '"') inQ = !inQ;
+        else if (!inQ && ch === d) n++;
+      }
+      if (n > bestCount) { best = d; bestCount = n; }
+    });
+    return best;
+  }
+
+  function parseCsv(text) {
+    text = String(text).replace(/^\uFEFF/, '');
+    var sepLine = text.match(/^sep=(.)\r?\n/i);
+    var d;
+    if (sepLine) { d = sepLine[1]; text = text.slice(sepLine[0].length); }
+    else d = detectDelimiter(text);
+    var rows = [], row = [], field = '', inQ = false, i = 0, n = text.length;
+    while (i < n) {
+      var ch = text.charAt(i);
+      if (inQ) {
+        if (ch === '"') {
+          if (text.charAt(i + 1) === '"') { field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += ch; i++; continue;
+      }
+      if (ch === '"' && field === '') { inQ = true; i++; continue; }
+      if (ch === d) { row.push(field); field = ''; i++; continue; }
+      if (ch === '\r' || ch === '\n') {
+        row.push(field); rows.push(row); row = []; field = '';
+        if (ch === '\r' && text.charAt(i + 1) === '\n') i++;
+        i++; continue;
+      }
+      field += ch; i++;
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return { rows: rows, delimiter: d };
+  }
+
+  // ---------------------------------------------------------------------------
+  // SheetJS worksheet → 2D array of JS values (Date for date cells)
+  // ---------------------------------------------------------------------------
+  function serialToDate(XLSX, v, date1904) {
+    if (XLSX && XLSX.SSF && XLSX.SSF.parse_date_code) {
+      var p = XLSX.SSF.parse_date_code(v, { date1904: !!date1904 });
+      if (p) return new Date(p.y, p.m - 1, p.d, p.H || 0, p.M || 0, Math.floor(p.S || 0));
+    }
+    var ms = Math.round((v - (date1904 ? -1462 : 0)) * 86400000);
+    var base = new Date(Date.UTC(1899, 11, 30) + ms);
+    return new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), base.getUTCHours(), base.getUTCMinutes(), base.getUTCSeconds());
+  }
+
+  function isDateFormat(XLSX, z) {
+    if (!z || z === 'General') return false;
+    if (XLSX && XLSX.SSF && XLSX.SSF.is_date) {
+      try { return XLSX.SSF.is_date(z); } catch (e) { /* fall through */ }
+    }
+    return /(^|[^"\\])[dmyhs]/i.test(String(z).replace(/"[^"]*"/g, '').replace(/\[[^\]]*\]/g, ''));
+  }
+
+  function sheetToRows(XLSX, ws, date1904) {
+    if (!ws || !ws['!ref']) return [];
+    var range = XLSX.utils.decode_range(ws['!ref']);
+    var rows = [];
+    // Always start at A1 so row/column numbers match what Excel shows.
+    for (var r = 0; r <= range.e.r; r++) {
+      var row = [];
+      for (var c = 0; c <= range.e.c; c++) {
+        var cell = ws[XLSX.utils.encode_cell({ r: r, c: c })];
+        var v = '';
+        if (cell) {
+          if (cell.t === 'n') v = isDateFormat(XLSX, cell.z) ? serialToDate(XLSX, cell.v, date1904) : cell.v;
+          else if (cell.t === 'd') v = cell.v instanceof Date ? cell.v : new Date(cell.v);
+          else if (cell.t === 'b') v = !!cell.v;
+          else if (cell.t === 'e') v = cell.w || '#ERROR!';
+          else if (cell.t === 's' || cell.t === 'str') v = cell.v == null ? '' : String(cell.v);
+          else if (cell.v != null) v = cell.v;
+        }
+        row.push(v);
+      }
+      rows.push(row);
+    }
+    // drop trailing empty rows
+    while (rows.length && rows[rows.length - 1].every(blank)) rows.pop();
+    return rows;
+  }
+
+  function blank(v) { return v === '' || v === null || v === undefined || (typeof v === 'string' && v.trim() === ''); }
+
+  /**
+   * The header is the widest mostly-text row near the top (title rows such as
+   * "Sales report Q3" or "Generated: 18.10.2026" are narrower and get skipped).
+   */
+  function detectHeaderRow(rows) {
+    var best = -1, bestWidth = 0, cands = [];
+    for (var i = 0; i < Math.min(rows.length, 30); i++) {
+      var filled = rows[i].filter(function (v) { return !blank(v); });
+      if (filled.length < 2) continue;
+      var texty = filled.filter(function (v) { return typeof v === 'string' && isNaN(Number(String(v).replace(',', '.'))); }).length;
+      if (texty < filled.length * 0.6) continue;
+      cands.push({ i: i, w: filled.length });
+      if (filled.length > bestWidth) bestWidth = filled.length;
+    }
+    for (var k = 0; k < cands.length; k++) if (cands[k].w >= bestWidth * 0.8) { best = cands[k].i; break; }
+    return best < 0 ? 0 : best;
+  }
+
+  /** Column names for checking: blanks become "Column F", repeats become "Amount (2)". */
+  function namedHeaders(row, width) {
+    var seen = {}, out = [];
+    for (var c = 0; c < Math.max(width || 0, (row || []).length); c++) {
+      var h = row && row[c] != null ? SheetEngine.display(row[c]).replace(/\s+/g, ' ').trim() : '';
+      if (!h) h = 'Column ' + columnLetter(c + 1);
+      var key = h.toLowerCase(), base = h, n = 2;
+      while (seen[key]) { h = base + ' (' + n++ + ')'; key = h.toLowerCase(); }
+      seen[key] = true;
+      out.push(h);
+    }
+    return out;
+  }
+
+  var TOTAL_RE = /^(grand\s+)?(total|totals|sum|summe|gesamt|gesamtsumme|subtotal|sub-total|zwischensumme|teilsumme|endsumme|insgesamt|overall)\b/i;
+
+  /**
+   * Splits a report into data rows and the rows around them:
+   *  kind[i] = 'data' | 'total' | 'subtotal' | 'note' | 'blank' (rows after the header only).
+   */
+  function classifyRows(rows, headerRow) {
+    var width = (rows[headerRow] || []).filter(function (v) { return !blank(v); }).length;
+    var kinds = [];
+    for (var i = headerRow + 1; i < rows.length; i++) {
+      var r = rows[i] || [];
+      var filled = r.filter(function (v) { return !blank(v); });
+      if (!filled.length) { kinds.push('blank'); continue; }
+      var firstText = filled.filter(function (v) { return typeof v === 'string'; })[0];
+      if (firstText && TOTAL_RE.test(String(firstText).trim()) && filled.indexOf(firstText) <= 2) {
+        kinds.push(/sub|zwischen|teil/i.test(firstText) ? 'subtotal' : 'total');
+        continue;
+      }
+      if (width >= 3 && filled.length === 1 && typeof filled[0] === 'string' && filled[0].length > 20 && r.indexOf(filled[0]) === 0) { kinds.push('note'); continue; }
+      kinds.push('data');
+    }
+    return kinds;
+  }
+
+  /** Rows for the engine: only data rows keep their values; others become empty (row numbers stay right). */
+  function dataOnly(rows, headerRow) {
+    var kinds = classifyRows(rows, headerRow);
+    return rows.slice(headerRow + 1).map(function (r, k) { return kinds[k] === 'data' ? r : []; });
+  }
+
+  /** Reads a cell like "F112" from the same sheet (used for "column total = Total row"). */
+  function cellValue(rows, ref) {
+    var m = /^\$?([A-Z]{1,3})\$?(\d+)$/i.exec(String(ref).trim());
+    if (!m) return undefined;
+    var col = 0;
+    m[1].toUpperCase().split('').forEach(function (ch) { col = col * 26 + ch.charCodeAt(0) - 64; });
+    var r = rows[+m[2] - 1];
+    return r ? r[col - 1] : undefined;
+  }
+
+  /** Rules stored in a "Sheet Rules" sheet (same layout as the Google Sheets add-on). */
+  function rulesFromRows(rows) {
+    if (!rows || rows.length < 2) return [];
+    var head = rows[0].map(function (h) { return String(h).trim().toLowerCase(); });
+    var ix = {};
+    RULE_HEADERS.forEach(function (h) { ix[h.toLowerCase()] = head.indexOf(h.toLowerCase()); });
+    if (ix.check < 0) return [];
+    var get = function (r, k) { return ix[k] >= 0 && r[ix[k]] != null ? r[ix[k]] : ''; };
+    var out = [];
+    rows.slice(1).forEach(function (r) {
+      var check = String(get(r, 'check')).trim().toLowerCase();
+      if (!check) return;
+      var en = get(r, 'enabled');
+      out.push({
+        enabled: !(en === false || /^(false|no|nein|0)$/i.test(String(en).trim())),
+        sheet: String(get(r, 'sheet')).trim(),
+        column: String(get(r, 'column')).trim(),
+        check: check,
+        param: SheetEngine.display(get(r, 'parameter')).trim(),
+        severity: String(get(r, 'severity')).trim().toLowerCase() === 'warning' ? 'warning' : 'error',
+        description: String(get(r, 'description')).trim()
+      });
+    });
+    return out;
+  }
+
+  function columnLetter(n) {          // 1-based
+    var s = '';
+    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Minimal .xlsx writer (store-only ZIP, inline strings, a few fills)
+  // ---------------------------------------------------------------------------
+  var CRC_TABLE = (function () {
+    var t = new Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function utf8(s) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(s);
+    var out = [], i = 0;
+    s = unescape(encodeURIComponent(s));
+    for (; i < s.length; i++) out.push(s.charCodeAt(i));
+    return new Uint8Array(out);
+  }
+
+  function zip(files) {               // files: [{name, data: Uint8Array}]
+    var chunks = [], central = [], offset = 0;
+    var now = new Date();
+    var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    function u16(a, v) { a.push(v & 0xFF, (v >>> 8) & 0xFF); }
+    function u32(a, v) { a.push(v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF); }
+    files.forEach(function (f) {
+      var name = utf8(f.name), crc = crc32(f.data), size = f.data.length;
+      var h = [];
+      u32(h, 0x04034B50); u16(h, 20); u16(h, 0x0800); u16(h, 0); u16(h, dosTime); u16(h, dosDate);
+      u32(h, crc); u32(h, size); u32(h, size); u16(h, name.length); u16(h, 0);
+      chunks.push(new Uint8Array(h), name, f.data);
+      var c = [];
+      u32(c, 0x02014B50); u16(c, 20); u16(c, 20); u16(c, 0x0800); u16(c, 0); u16(c, dosTime); u16(c, dosDate);
+      u32(c, crc); u32(c, size); u32(c, size); u16(c, name.length); u16(c, 0); u16(c, 0); u16(c, 0); u16(c, 0);
+      u32(c, 0); u32(c, offset);
+      central.push(new Uint8Array(c), name);
+      offset += h.length + name.length + size;
+    });
+    var cdSize = central.reduce(function (s, a) { return s + a.length; }, 0);
+    var e = [];
+    u32(e, 0x06054B50); u16(e, 0); u16(e, 0); u16(e, files.length); u16(e, files.length);
+    u32(e, cdSize); u32(e, offset); u16(e, 0);
+    var all = chunks.concat(central, [new Uint8Array(e)]);
+    var total = all.reduce(function (s, a) { return s + a.length; }, 0);
+    var out = new Uint8Array(total), pos = 0;
+    all.forEach(function (a) { out.set(a, pos); pos += a.length; });
+    return out;
+  }
+
+  function xmlEsc(s) {
+    return String(s)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // style ids (see STYLES)
+  var S = { plain: 0, head: 1, err: 2, warn: 3, date: 4, dateErr: 5, dateWarn: 6, link: 7, cfg: 8 };
+  var STYLES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts>' +
+    '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font>' +
+    '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
+    '<font><u/><sz val="11"/><color rgb="FF1F5F99"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="6"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFAD4D0"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFFEBB0"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFE3EAF3"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFEADCF5"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="9">' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="3" borderId="0" xfId="0" applyNumberFormat="1" applyFill="1"/>' +
+    '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1"/>' +
+    '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  function isDate(v) { return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime()); }
+
+  function dateSerial(d) {
+    return (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()) - Date.UTC(1899, 11, 30)) / 86400000;
+  }
+
+  /**
+   * sheet: { name, rows, styles?: {"r,c": styleKey}, freezeRow?: n, widths?: [chars],
+   *          links?: [{r, c, location}] }   (r, c zero-based)
+   */
+  function sheetXml(sheet) {
+    var rows = sheet.rows || [];
+    var maxC = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+    var x = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'];
+    if (rows.length && maxC) x.push('<dimension ref="A1:' + columnLetter(maxC) + rows.length + '"/>');
+    x.push('<sheetViews><sheetView workbookViewId="0">');
+    if (sheet.freezeRow) {
+      x.push('<pane ySplit="' + sheet.freezeRow + '" topLeftCell="A' + (sheet.freezeRow + 1) + '" activePane="bottomLeft" state="frozen"/>');
+    }
+    x.push('</sheetView></sheetViews>');
+    if (sheet.widths && sheet.widths.length) {
+      x.push('<cols>');
+      sheet.widths.forEach(function (w, i) {
+        x.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + Math.max(6, Math.min(70, w)) + '" customWidth="1"/>');
+      });
+      x.push('</cols>');
+    }
+    x.push('<sheetData>');
+    var styles = sheet.styles || {};
+    rows.forEach(function (row, r) {
+      var cells = [];
+      row.forEach(function (v, c) {
+        var ref = columnLetter(c + 1) + (r + 1);
+        var st = styles[r + ',' + c];
+        var sid = st ? S[st] : 0;
+        if (v === '' || v === null || v === undefined) {
+          if (sid) cells.push('<c r="' + ref + '" s="' + sid + '"/>');
+          return;
+        }
+        if (isDate(v)) {
+          var ds = st === 'err' ? S.dateErr : st === 'warn' ? S.dateWarn : S.date;
+          cells.push('<c r="' + ref + '" s="' + ds + '"><v>' + dateSerial(v) + '</v></c>');
+        } else if (typeof v === 'number' && isFinite(v)) {
+          cells.push('<c r="' + ref + '"' + (sid ? ' s="' + sid + '"' : '') + '><v>' + v + '</v></c>');
+        } else if (typeof v === 'boolean') {
+          cells.push('<c r="' + ref + '" t="b"' + (sid ? ' s="' + sid + '"' : '') + '><v>' + (v ? 1 : 0) + '</v></c>');
+        } else {
+          var s = String(v);
+          if (s.length > 32767) s = s.slice(0, 32767);
+          cells.push('<c r="' + ref + '" t="inlineStr"' + (sid ? ' s="' + sid + '"' : '') + '><is><t xml:space="preserve">' + xmlEsc(s) + '</t></is></c>');
+        }
+      });
+      x.push('<row r="' + (r + 1) + '">' + cells.join('') + '</row>');
+    });
+    x.push('</sheetData>');
+    if (sheet.links && sheet.links.length) {
+      x.push('<hyperlinks>');
+      sheet.links.forEach(function (l) {
+        x.push('<hyperlink ref="' + columnLetter(l.c + 1) + (l.r + 1) + '" location="' + xmlEsc(l.location) + '" display="' + xmlEsc(l.display || '') + '"/>');
+      });
+      x.push('</hyperlinks>');
+    }
+    x.push('</worksheet>');
+    return x.join('');
+  }
+
+  function safeSheetName(name, used) {
+    var base = String(name || 'Sheet').replace(/[\[\]:*?\/\\]/g, ' ').replace(/^'+|'+$/g, '').trim().slice(0, 31) || 'Sheet';
+    var n = base, k = 2;
+    while (used[n.toLowerCase()]) { var suf = ' (' + k++ + ')'; n = base.slice(0, 31 - suf.length) + suf; }
+    used[n.toLowerCase()] = true;
+    return n;
+  }
+
+  function quoteSheet(name) { return "'" + name.replace(/'/g, "''") + "'"; }
+
+  function buildXlsx(sheets) {
+    var used = {};
+    sheets = sheets.map(function (s) { var o = {}; for (var k in s) o[k] = s[k]; o.name = safeSheetName(s.name, used); return o; });
+    var files = [];
+    var ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      sheets.map(function (s, i) {
+        return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+      }).join('') + '</Types>';
+    files.push({ name: '[Content_Types].xml', data: utf8(ct) });
+    files.push({ name: '_rels/.rels', data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>') });
+    files.push({ name: 'xl/workbook.xml', data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<bookViews><workbookView/></bookViews><sheets>' +
+      sheets.map(function (s, i) { return '<sheet name="' + xmlEsc(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') +
+      '</sheets></workbook>') });
+    files.push({ name: 'xl/_rels/workbook.xml.rels', data: utf8('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      sheets.map(function (s, i) {
+        return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>';
+      }).join('') +
+      '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>') });
+    files.push({ name: 'xl/styles.xml', data: utf8(STYLES) });
+    sheets.forEach(function (s, i) { files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: utf8(sheetXml(s)) }); });
+    return { bytes: zip(files), names: sheets.map(function (s) { return s.name; }) };
+  }
+
+  function widthsFor(rows, maxRows) {
+    var w = [];
+    rows.slice(0, maxRows || 200).forEach(function (r) {
+      r.forEach(function (v, c) {
+        var len = isDate(v) ? 10 : String(v == null ? '' : v).length;
+        w[c] = Math.max(w[c] || 8, len + 2);
+      });
+    });
+    return w;
+  }
+
+  /**
+   * Builds the marked-up workbook.
+   * book: { sheets: [{ name, rows, headerRow }] }, rules: [...], issues: [...] from the engine.
+   */
+  function buildReport(book, rules, issues) {
+    var marks = {};                                   // sheetName -> {"r,c": style}
+    issues.forEach(function (i) {
+      if (!i.row || i.colIndex < 0) return;
+      var m = marks[i.sheet] = marks[i.sheet] || {};
+      var key = (i.row - 1) + ',' + i.colIndex;
+      if (m[key] !== 'err') m[key] = i.severity === 'warning' ? 'warn' : 'err';
+    });
+
+    var used = {}, finalNames = {};
+    var out = [];
+    book.sheets.forEach(function (s) {
+      if (s.name === RULES_SHEET || s.name === REPORT_SHEET) return;
+      var nm = safeSheetName(s.name, used);
+      finalNames[s.name] = nm;
+      var styles = {};
+      var m = marks[s.name] || {};
+      for (var k in m) styles[k] = m[k];
+      var hr = s.headerRow || 0;
+      (s.rows[hr] || []).forEach(function (h, c) { if (!styles[hr + ',' + c]) styles[hr + ',' + c] = 'head'; });
+      out.push({ name: nm, rows: s.rows, styles: styles, freezeRow: hr + 1, widths: widthsFor(s.rows) });
+    });
+
+    var rep = [['Severity', 'Sheet', 'Cell', 'Column', 'Value', 'Problem', 'Rule']];
+    var repStyles = {}, links = [];
+    for (var c = 0; c < 7; c++) repStyles['0,' + c] = 'head';
+    issues.forEach(function (i, k) {
+      var r = k + 1;
+      var sheet = finalNames[i.sheet] || i.sheet;
+      var cell = i.row ? (i.colIndex >= 0 ? columnLetter(i.colIndex + 1) : 'A') + i.row : '';
+      rep.push([i.severity === 'config' ? 'rule problem' : i.severity, sheet, cell, i.column || '',
+        isDate(i.value) ? i.value : (i.value == null ? '' : i.value), i.message, i.rule]);
+      repStyles[r + ',0'] = i.severity === 'warning' ? 'warn' : i.severity === 'config' ? 'cfg' : 'err';
+      if (cell && finalNames[i.sheet]) {
+        repStyles[r + ',2'] = 'link';
+        links.push({ r: r, c: 2, location: quoteSheet(sheet) + '!' + cell, display: cell });
+      }
+    });
+    if (!issues.length) rep.push(['', '', '', '', '', 'No problems found', '']);
+    out.push({ name: REPORT_SHEET, rows: rep, styles: repStyles, freezeRow: 1, widths: [12, 16, 8, 18, 22, 60, 40], links: links });
+
+    var rr = [RULE_HEADERS.slice()];
+    var rStyles = {};
+    for (var j = 0; j < RULE_HEADERS.length; j++) rStyles['0,' + j] = 'head';
+    rules.forEach(function (r) {
+      rr.push([r.enabled !== false, r.sheet || '', r.column || '', r.check, r.param == null ? '' : String(r.param), r.severity || 'error', r.description || '']);
+    });
+    out.push({ name: RULES_SHEET, rows: rr, styles: rStyles, freezeRow: 1, widths: [9, 16, 20, 16, 22, 10, 44] });
+
+    return buildXlsx(out).bytes;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Starter rules from the data itself, so a new file gets checked right away.
+  // Each suggestion is something the column almost always does; the rare rows
+  // that break it are what the user wants to see.
+  // ---------------------------------------------------------------------------
+  /** "ACCT_856_976" → skeleton "A_9_9" with per-run lengths, for format consistency. */
+  function shapeRuns(s) {
+    var runs = [], re = /([A-Z]+)|([a-z]+)|(\d+)|([^A-Za-z\d])/g, m;
+    while ((m = re.exec(s)) !== null) {
+      if (m[1]) runs.push(['A', m[1].length]);
+      else if (m[2]) runs.push(['a', m[2].length]);
+      else if (m[3]) runs.push(['9', m[3].length]);
+      else runs.push([m[4], 1]);
+    }
+    // merge repeated identical punctuation into one run so "a  b" and "a b" differ
+    return runs;
+  }
+  function escRe(ch) { return ch.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&'); }
+
+  /** Regex covering the dominant format of a text column, or null. */
+  function formatPattern(texts) {
+    if (texts.length < 10) return null;
+    var groups = {};
+    texts.forEach(function (t) {
+      if (t.length > 40) return;
+      var runs = shapeRuns(t);
+      var key = runs.map(function (r) { return r[0]; }).join('');
+      var g = groups[key] || (groups[key] = { n: 0, runs: runs.map(function (r) { return [r[0], r[1], r[1]]; }) });
+      g.n++;
+      runs.forEach(function (r, i) { g.runs[i][1] = Math.min(g.runs[i][1], r[1]); g.runs[i][2] = Math.max(g.runs[i][2], r[1]); });
+    });
+    var keys = Object.keys(groups);
+    if (!keys.length) return null;
+    var top = keys.reduce(function (a, b) { return groups[b].n > groups[a].n ? b : a; });
+    var g = groups[top];
+    // If one exact length pattern covers 90 %, use exact lengths so "ACCT_1_2_3_4" stands out.
+    var exact = {};
+    texts.forEach(function (t) {
+      var runs = shapeRuns(t);
+      if (runs.map(function (r) { return r[0]; }).join('') !== top) return;
+      var k = runs.map(function (r) { return r[1]; }).join(',');
+      exact[k] = (exact[k] || 0) + 1;
+    });
+    var topExact = Object.keys(exact).reduce(function (a, b) { return exact[b] > exact[a] ? b : a; });
+    if (exact[topExact] >= texts.length * 0.9) {
+      var lens = topExact.split(',').map(Number);
+      g = { n: exact[topExact], runs: g.runs.map(function (r, i) { return [r[0], lens[i], lens[i]]; }) };
+    }
+    if (g.n < texts.length * 0.9) return null;
+    if (!/9/.test(top) || !/[^Aa9]|9/.test(top)) return null;              // codes with digits, not free text
+    if (/ /.test(top) && top.replace(/[^ ]/g, '').length > 2) return null; // looks like a sentence
+    return '^' + g.runs.map(function (r) {
+      var cls = r[0] === 'A' ? '[A-Z]' : r[0] === 'a' ? '[a-z]' : r[0] === '9' ? '\\d' : escRe(r[0]);
+      var cnt = r[1] === r[2] ? (r[1] === 1 ? '' : '{' + r[1] + '}') : '{' + r[1] + ',' + r[2] + '}';
+      return cls + cnt;
+    }).join('') + '$';
+  }
+
+  /**
+   * Report-level suggestions that need the full sheet (header + total rows).
+   * rows: the whole sheet; headerRow: index of the header row.
+   */
+  function suggestForSheet(sheetName, rows, headerRow) {
+    var width = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+    var hs = namedHeaders(rows[headerRow], width);
+    var out = suggestRules(sheetName, hs, dataOnly(rows, headerRow));
+    var kinds = classifyRows(rows, headerRow);
+    var totals = [];
+    kinds.forEach(function (k, j) { if (k === 'total') totals.push(headerRow + 1 + j); });
+    if (totals.length === 1) {
+      var tr = rows[totals[0]];
+      hs.forEach(function (h, c) {
+        var v = tr[c];
+        if (typeof v !== 'number' && isNaN(SheetEngine.toNumber(v))) return;
+        if (blank(v)) return;
+        var isNumCol = out.some(function (r) { return r.column === h && (r.check === 'range' || r.check === 'number' || r.check === 'outlier' || r.check === 'decimals'); });
+        if (!isNumCol) return;
+        var ref = columnLetter(c + 1) + (totals[0] + 1);
+        out.push({ sheet: sheetName, column: h, check: 'sum_equals', param: ref, severity: 'error',
+          description: h + ' must add up to the total in ' + ref, enabled: true, suggested: true });
+      });
+    }
+    return out;
+  }
+
+  function suggestRules(sheetName, headers, rows) {
+    var data = rows.filter(function (r) { return r.some(function (v) { return !blank(v); }); });
+    var n = data.length;
+    if (!n) return [];
+    var out = [];
+    function add(column, check, param, severity, description) {
+      out.push({ sheet: sheetName, column: column, check: check, param: param || '', severity: severity || 'error', description: description, enabled: true, suggested: true });
+    }
+    headers.forEach(function (h, c) {
+      h = String(h == null ? '' : h).trim();
+      if (!h) return;
+      var vals = data.map(function (r) { return r[c]; });
+      var filled = vals.filter(function (v) { return !blank(v); });
+      if (!filled.length) return;
+      var share = function (pred) { return filled.filter(pred).length / filled.length; };
+      var name = h.toLowerCase();
+
+      var nums = filled.map(function (v) { return SheetEngine.toNumber(v); });
+      var numShare = nums.filter(function (x) { return !isNaN(x); }).length / filled.length;
+      var dateShare = share(function (v) { return !!SheetEngine.toDate(v); });
+      var boolShare = share(function (v) { return typeof v === 'boolean' || /^(true|false|wahr|falsch|yes|no|ja|nein)$/i.test(String(v).trim()); });
+      var texts = filled.map(function (v) { return SheetEngine.display(v).trim(); });
+      var distinct = {};
+      texts.forEach(function (t) { var k = t.toLowerCase(); distinct[k] = (distinct[k] || 0) + 1; });
+      var distinctCount = Object.keys(distinct).length;
+
+      // completeness: a column that is almost always filled should always be filled
+      if (filled.length / n >= 0.8 && filled.length < n) add(h, 'required', '', 'error', h + ' is usually filled; flag empty cells');
+      else if (filled.length === n && n >= 3) add(h, 'required', '', 'error', h + ' must be filled');
+
+      // identifiers: ID-like name and (almost) all values distinct
+      var idName = /(^|[\s_\-.#])(id|nr|no|number|nummer|ref|reference|referenz|key|code)([\s_\-.#]|$)/i.test(name) || /(id|nr|nummer|number|no\.?)$/i.test(name.replace(/[\s_\-.#]+$/, ''));
+      var repeats = filled.length - distinctCount;
+      if (idName && filled.length >= 3 && (distinctCount / filled.length >= 0.8 || repeats <= Math.max(2, filled.length * 0.05))) {
+        add(h, 'unique', '', 'error', h + ' must not repeat');
+      }
+
+      if (share(function (v) { return /^[A-Z]{2}\d{2}\s?[A-Z0-9]/i.test(String(v)) && String(v).replace(/\s/g, '').length >= 15; }) >= 0.8 || /\biban\b/.test(name)) {
+        add(h, 'iban', '', 'error', h + ' must be a valid IBAN');
+        return;
+      }
+      var textVals = filled.filter(function (v) { return typeof v === 'string'; });
+      if (textVals.length >= filled.length * 0.5 && textVals.some(function (v) { return /^\s|\s$|\S\s{2,}\S/.test(v); })) {
+        add(h, 'no_extra_spaces', '', 'warning', h + ' should have no stray spaces');
+      }
+
+      if (/\b(bic|swift)\b/.test(name) || share(function (v) { return /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(String(v).trim()); }) >= 0.9) {
+        add(h, 'bic', '', 'error', h + ' must be a valid BIC');
+        return;
+      }
+      if (share(function (v) { return /@/.test(String(v)); }) >= 0.8 || /e-?mail/.test(name)) {
+        add(h, 'email', '', 'warning', h + ' should be a valid e-mail address');
+        return;
+      }
+      if (boolShare >= 0.9 && distinctCount <= 2) {
+        add(h, 'allowed', 'TRUE, FALSE', 'error', h + ' must be TRUE or FALSE');
+        return;
+      }
+      if (dateShare >= 0.9 && numShare < 0.5) {
+        add(h, 'date', '', 'error', h + ' must be a valid date');
+        if (/(created|booked|booking|paid|posted|erstellt|gebucht|bezahlt|timestamp|date of)/.test(name)) add(h, 'not_future', '', 'error', h + ' cannot be in the future');
+        return;
+      }
+      if (numShare >= 0.9) {
+        if (numShare < 1 || filled.some(function (v) { return typeof v !== 'number'; })) add(h, 'number', '', 'error', h + ' must be a number');
+        var nonNeg = nums.filter(function (x) { return !isNaN(x) && x >= 0; }).length / filled.length;
+        var pctName = /(%|percent|prozent|rate|quote|ratio|anteil|share|margin)/.test(name);
+        var okNums = nums.filter(function (x) { return !isNaN(x); });
+        var inUnit = okNums.filter(function (x) { return x >= 0 && x <= 1; }).length / okNums.length;
+        var inPct = okNums.filter(function (x) { return x >= 0 && x <= 100; }).length / okNums.length;
+        if (pctName && inUnit >= 0.95) add(h, 'range', '0..1', 'error', h + ' must be between 0 and 1 (0–100 %)');
+        else if (pctName && inPct >= 0.95 && !/rate/.test(name)) add(h, 'range', '0..100', 'error', h + ' must be between 0 and 100');
+        else if (nonNeg >= 0.95) add(h, 'range', '0..', 'error', h + ' must not be negative');
+        var money = /(amount|balance|interest|tax|fee|price|cost|total|eur|usd|betrag|saldo|zins|steuer|gebühr|preis|summe)/.test(name);
+        if (money) add(h, 'decimals', '2', 'warning', h + ' should have at most 2 decimals (cents)');
+        var distinctNums = {};
+        okNums.forEach(function (x) { distinctNums[x] = true; });
+        if (!idName && okNums.length >= 20 && Object.keys(distinctNums).length >= 10) {
+          add(h, 'outlier', '3', 'warning', 'Unusually large or small ' + h);
+        }
+        var numCounts = {};
+        nums.forEach(function (x) { if (!isNaN(x)) numCounts[x] = (numCounts[x] || 0) + 1; });
+        var keys = Object.keys(numCounts);
+        var common = keys.filter(function (k) { return numCounts[k] >= 2; });
+        var rareN = keys.length - common.length;
+        var wholeNums = okNums.every(function (x) { return Math.round(x) === x; });
+        if (wholeNums && !idName && !money && filled.length >= 10 && keys.length >= 2 && keys.length <= 8 && rareN <= 2 && common.length >= 2) {
+          add(h, 'allowed', common.map(Number).sort(function (a, b) { return a - b; }).join(', '), 'warning', h + ' should be one of the usual values');
+        }
+        return;
+      }
+      var pattern = formatPattern(texts);
+      if (pattern) {
+        add(h, 'regex', pattern, 'error', h + ' should follow the same format as the other values');
+      }
+
+      // short codes (currency, country, status) used throughout the file
+      var shortCodes = texts.every(function (t) { return t.length <= 12; });
+      var commonCodes = Object.keys(distinct).filter(function (k) { return distinct[k] >= 2; });
+      var rareCodes = Object.keys(distinct).length - commonCodes.length;
+      if (shortCodes && filled.length >= 10 && commonCodes.length >= 1 && commonCodes.length <= 12 && rareCodes <= 3 &&
+          (rareCodes > 0 || commonCodes.length <= 6) && /(currency|währung|country|land|status|type|typ|segment|category|kategorie|code|unit|einheit)/.test(name) ||
+          shortCodes && filled.length >= 10 && commonCodes.length === 1 && rareCodes <= 2) {
+        var keep = {};
+        texts.forEach(function (t) { var k = t.toLowerCase(); if (distinct[k] >= 2 && !keep[k]) keep[k] = t; });
+        add(h, 'allowed', Object.keys(keep).map(function (k) { return keep[k]; }).join(', '), rareCodes ? 'warning' : 'error', h + ' must be ' + (commonCodes.length === 1 ? keep[commonCodes[0]] : 'one of the usual values'));
+        return;
+      }
+      // short code lists: a handful of values, each used several times → typos stand out
+      if (filled.length >= 10 && distinctCount <= 12 && distinctCount < filled.length / 3) {
+        var common = Object.keys(distinct).filter(function (k) { return distinct[k] >= 2; });
+        var rare = Object.keys(distinct).filter(function (k) { return distinct[k] === 1; });
+        if (rare.length && rare.length <= 3 && common.length >= 2) {
+          var shown = {};
+          texts.forEach(function (t) { if (distinct[t.toLowerCase()] >= 2 && !shown[t.toLowerCase()]) shown[t.toLowerCase()] = t; });
+          add(h, 'allowed', Object.keys(shown).map(function (k) { return shown[k]; }).join(', '), 'warning', h + ' should be one of the values used elsewhere in the column');
+        }
+      }
+      if (/(name|customer|client|kunde|bank|company|firma|supplier|lieferant|vendor)/.test(name) && distinctCount > 1) {
+        add(h, 'fuzzy_duplicate', '', 'warning', 'Same ' + h + ' written differently');
+      }
+    });
+
+    // start/end date pairs, e.g. "Placement Start Date" and "Deposit Closing Date"
+    var dateCols = [];
+    headers.forEach(function (h, c) {
+      h = String(h == null ? '' : h).trim();
+      var vals = data.map(function (r) { return r[c]; }).filter(function (v) { return !blank(v); });
+      if (h && vals.length && vals.filter(function (v) { return !!SheetEngine.toDate(v); }).length / vals.length >= 0.9) dateCols.push({ h: h, c: c });
+    });
+    var startRe = /(start|begin|beginn|placement|open|opening|from|von|valid from|issue|ausgabe|eröffnung)/i;
+    var endRe = /(end|ende|closing|close|maturity|fällig|until|bis|to\b|expiry|ablauf|valid to)/i;
+    dateCols.filter(function (d) { return startRe.test(d.h); }).forEach(function (st) {
+      dateCols.filter(function (d) { return d !== st && endRe.test(d.h) && !startRe.test(d.h); }).forEach(function (en) {
+        var pairs = data.filter(function (r) { return SheetEngine.toDate(r[st.c]) && SheetEngine.toDate(r[en.c]); });
+        if (!pairs.length) return;
+        var ok = pairs.filter(function (r) { return SheetEngine.toDate(r[en.c]) >= SheetEngine.toDate(r[st.c]); }).length / pairs.length;
+        if (ok >= 0.8) add(en.h, 'compare', '>= ' + st.h, 'error', en.h + ' cannot be before ' + st.h);
+      });
+    });
+    return out;
+  }
+
+  function reportCsv(issues) {
+    var q = function (v) {
+      var s = isDate(v) ? SheetEngine.display(v) : String(v == null ? '' : v);
+      if (/^[=+\-@]/.test(s)) s = "'" + s;          // keep spreadsheet apps from evaluating it
+      return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    var lines = [['Severity', 'Sheet', 'Cell', 'Column', 'Value', 'Problem', 'Rule'].join(',')];
+    issues.forEach(function (i) {
+      var cell = i.row ? (i.colIndex >= 0 ? columnLetter(i.colIndex + 1) : 'A') + i.row : '';
+      lines.push([i.severity, i.sheet, cell, i.column, i.value, i.message, i.rule].map(q).join(','));
+    });
+    return '\uFEFF' + lines.join('\r\n');
+  }
+
+  return {
+    RULES_SHEET: RULES_SHEET, REPORT_SHEET: REPORT_SHEET,
+    parseCsv: parseCsv, sheetToRows: sheetToRows, detectHeaderRow: detectHeaderRow,
+    rulesFromRows: rulesFromRows, columnLetter: columnLetter, suggestRules: suggestRules, suggestForSheet: suggestForSheet,
+    namedHeaders: namedHeaders, classifyRows: classifyRows, dataOnly: dataOnly, cellValue: cellValue, formatPattern: formatPattern,
+    buildXlsx: buildXlsx, buildReport: buildReport, reportCsv: reportCsv, crc32: crc32
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = SheetIO;
+
+/**
+ * Recon — two-sided reconciliation engine.
+ *
+ * Pure JavaScript, no DOM. Needs SheetEngine (toNumber, toDate, display) from
+ * vendor/sheet-engine.js for value parsing.
+ *
+ * A side is { name, headers: [...], rows: [[...]], firstDataRow }.
+ * A config is:
+ * {
+ *   keys:     [{ a: 'Tx hash', b: 'Transaction ID' }],          // match on these (all must be equal)
+ *   compares: [{ a: 'Amount', b: 'Quantity', type: 'number', tol: 0.00000001, abs: false },
+ *              { a: 'Date',   b: 'Settled',  type: 'date',   tol: 1 },   // days
+ *              { a: 'Asset',  b: 'Coin',     type: 'text' }],
+ *   group:    { a: 'Asset', b: 'Coin' },                         // optional: totals per group
+ *   amount:   { a: 'Amount', b: 'Quantity' },                    // optional: column summed for totals
+ *   fallback: true          // pair leftovers on all compare fields when the key doesn't match
+ * }
+ */
+var Recon = (function () {
+  'use strict';
+  var E = typeof SheetEngine !== 'undefined' ? SheetEngine : require('../vendor/sheet-engine.js');
+
+  // ---------------------------------------------------------------------------
+  // helpers
+  // ---------------------------------------------------------------------------
+  function blank(v) { return v === null || v === undefined || (typeof v === 'string' && v.trim() === ''); }
+
+  function normKey(v) {
+    if (blank(v)) return '';
+    if (typeof v === 'number') return String(v);
+    if (Object.prototype.toString.call(v) === '[object Date]') return E.display(v);
+    return String(v).trim().replace(/\s+/g, ' ').toLowerCase().replace(/^0x/, '');
+  }
+
+  function normText(v) { return blank(v) ? '' : E.display(v).trim().replace(/\s+/g, ' ').toLowerCase(); }
+
+  function colIndex(headers, name) {
+    var k = String(name || '').trim().toLowerCase();
+    for (var i = 0; i < headers.length; i++) if (String(headers[i]).trim().toLowerCase() === k) return i;
+    return -1;
+  }
+
+  function round(n, dp) { var f = Math.pow(10, dp == null ? 8 : dp); return Math.round(n * f) / f; }
+
+  function fmt(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return String(n);
+    var s = round(n, 8).toString();
+    return s;
+  }
+
+  // ---------------------------------------------------------------------------
+  // compare one field
+  // ---------------------------------------------------------------------------
+  /** Returns null when equal (within tolerance), else { a, b, diff, note }. */
+  function compareField(c, va, vb) {
+    var ba = blank(va), bb = blank(vb);
+    if (ba && bb) return null;
+    if (ba || bb) return { a: va, b: vb, note: ba ? 'Empty on A' : 'Empty on B' };
+    if (c.type === 'number') {
+      var na = E.toNumber(va), nb = E.toNumber(vb);
+      if (isNaN(na) || isNaN(nb)) return { a: va, b: vb, note: 'Not a number' };
+      if (c.flip) nb = -nb;
+      if (c.abs) { na = Math.abs(na); nb = Math.abs(nb); }
+      var d = round(nb - na, 10);
+      return Math.abs(d) <= (c.tol || 0) + 1e-12 ? null : { a: va, b: vb, diff: d, note: 'Differs by ' + (d > 0 ? '+' : '') + fmt(d) };
+    }
+    if (c.type === 'date') {
+      var da = E.toDate(va), db = E.toDate(vb);
+      if (!da || !db) return { a: va, b: vb, note: 'Not a date' };
+      var dayA = Date.UTC(da.getFullYear(), da.getMonth(), da.getDate());
+      var dayB = Date.UTC(db.getFullYear(), db.getMonth(), db.getDate());
+      var days = Math.round((dayB - dayA) / 86400000);
+      return Math.abs(days) <= (c.tol || 0) ? null : { a: va, b: vb, diff: days, note: (days > 0 ? '+' : '') + days + ' day' + (Math.abs(days) === 1 ? '' : 's') };
+    }
+    return normText(va) === normText(vb) ? null : { a: va, b: vb, note: 'Different value' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // reconcile
+  // ---------------------------------------------------------------------------
+  function reconcile(A, B, cfg) {
+    var problems = [];
+    function idx(side, name, what) {
+      var i = colIndex(side.headers, name);
+      if (i < 0) problems.push(what + ': column "' + name + '" not found in ' + side.name);
+      return i;
+    }
+    var keys = (cfg.keys || []).map(function (k) { return { a: idx(A, k.a, 'Match on'), b: idx(B, k.b, 'Match on'), nameA: k.a, nameB: k.b }; });
+    var comps = (cfg.compares || []).map(function (c) {
+      return { a: idx(A, c.a, 'Compare'), b: idx(B, c.b, 'Compare'), nameA: c.a, nameB: c.b, type: c.type || 'text', tol: +c.tol || 0, abs: !!c.abs, flip: !!c.flip };
+    });
+    var group = cfg.group && cfg.group.a ? { a: idx(A, cfg.group.a, 'Totals by'), b: idx(B, cfg.group.b, 'Totals by') } : null;
+    var amount = cfg.amount && cfg.amount.a ? { a: idx(A, cfg.amount.a, 'Totals of'), b: idx(B, cfg.amount.b, 'Totals of'), abs: !!cfg.amount.abs, flip: !!cfg.amount.flip } : null;
+    if (!keys.length && !comps.length) problems.push('Choose at least one column to match on.');
+    if (problems.length) return { problems: problems };
+
+    function rowsOf(side) {
+      var out = [];
+      side.rows.forEach(function (r, i) {
+        if (!r || !r.some(function (v) { return !blank(v); })) return;
+        out.push({ side: side, r: r, row: (side.firstDataRow || 2) + i, matched: false });
+      });
+      return out;
+    }
+    var ra = rowsOf(A), rb = rowsOf(B);
+
+    function keyOf(rec, which) {
+      if (!keys.length) return '';
+      var parts = keys.map(function (k) { return normKey(rec.r[k[which]]); });
+      return parts.every(function (p) { return p === ''; }) ? '' : parts.join('␟');
+    }
+
+    var results = [];           // one entry per pair or unpaired row
+    var dupA = 0, dupB = 0;
+
+    function diffs(x, y) {
+      var out = [];
+      comps.forEach(function (c) {
+        var d = compareField(c, x.r[c.a], y.r[c.b]);
+        if (d) { d.field = c.nameA === c.nameB ? c.nameA : c.nameA + ' / ' + c.nameB; d.colA = c.a; d.colB = c.b; out.push(d); }
+      });
+      return out;
+    }
+
+    // 1) key matching
+    if (keys.length) {
+      var mapB = {};
+      rb.forEach(function (rec) { var k = keyOf(rec, 'b'); if (!k) return; (mapB[k] = mapB[k] || []).push(rec); });
+      var seenA = {};
+      ra.forEach(function (rec) {
+        var k = keyOf(rec, 'a');
+        if (!k) return;
+        var dup = seenA[k];
+        seenA[k] = (seenA[k] || 0) + 1;
+        if (dup) { dupA++; rec.duplicate = true; }
+        var cands = mapB[k];
+        if (!cands) return;
+        var pick = null;
+        for (var i = 0; i < cands.length; i++) if (!cands[i].matched) { pick = cands[i]; break; }
+        if (!pick) return;
+        rec.matched = pick.matched = true;
+        var ds = diffs(rec, pick);
+        results.push({ status: ds.length ? 'mismatch' : 'matched', a: rec, b: pick, diffs: ds, via: 'key' });
+      });
+      Object.keys(mapB).forEach(function (k) { mapB[k].forEach(function (rec, j) { if (j > 0) { dupB++; rec.duplicate = true; } }); });
+    }
+
+    // 2) fallback: pair leftovers on all compare fields (within tolerance)
+    if ((cfg.fallback || !keys.length) && comps.length) {
+      var leftB = rb.filter(function (r) { return !r.matched; });
+      ra.forEach(function (rec) {
+        if (rec.matched) return;
+        for (var i = 0; i < leftB.length; i++) {
+          var cand = leftB[i];
+          if (cand.matched) continue;
+          if (!diffs(rec, cand).length) {
+            rec.matched = cand.matched = true;
+            results.push({ status: keys.length ? 'matched_no_key' : 'matched', a: rec, b: cand, diffs: [], via: 'values' });
+            break;
+          }
+        }
+      });
+    }
+
+    // 3) leftovers
+    ra.forEach(function (rec) { if (!rec.matched) results.push({ status: 'missing_in_b', a: rec, b: null, diffs: [] }); });
+    rb.forEach(function (rec) { if (!rec.matched) results.push({ status: 'missing_in_a', a: null, b: rec, diffs: [] }); });
+
+    // duplicates as their own flag (rows may also be matched/missing)
+    var dupRows = ra.filter(function (r) { return r.duplicate; }).map(function (r) { return { status: 'duplicate', a: r, b: null, diffs: [] }; })
+      .concat(rb.filter(function (r) { return r.duplicate; }).map(function (r) { return { status: 'duplicate', a: null, b: r, diffs: [] }; }));
+
+    // 4) totals
+    var totals = null;
+    if (amount && amount.a >= 0 && amount.b >= 0) {
+      var g = {};
+      function addTo(rec, which) {
+        var key = group ? (E.display(rec.r[group[which]]).trim() || '(blank)') : 'All';
+        var gk = key.toUpperCase();
+        var t = g[gk] || (g[gk] = { group: key, a: 0, b: 0, countA: 0, countB: 0 });
+        var n = E.toNumber(rec.r[amount[which]]);
+        if (isNaN(n)) return;
+        if (amount.flip && which === 'b') n = -n;
+        if (amount.abs) n = Math.abs(n);
+        t[which] += n; t[which === 'a' ? 'countA' : 'countB']++;
+      }
+      ra.forEach(function (r) { addTo(r, 'a'); });
+      rb.forEach(function (r) { addTo(r, 'b'); });
+      totals = Object.keys(g).sort().map(function (k) {
+        var t = g[k]; t.a = round(t.a, 8); t.b = round(t.b, 8); t.diff = round(t.b - t.a, 8); return t;
+      });
+    }
+
+    var order = { mismatch: 0, missing_in_b: 1, missing_in_a: 2, matched_no_key: 3, matched: 4 };
+    results.sort(function (x, y) {
+      return (order[x.status] - order[y.status]) || ((x.a ? x.a.row : 1e9) - (y.a ? y.a.row : 1e9)) || ((x.b ? x.b.row : 1e9) - (y.b ? y.b.row : 1e9));
+    });
+
+    var count = function (s) { return results.filter(function (r) { return r.status === s; }).length; };
+    return {
+      problems: [],
+      results: results,
+      duplicates: dupRows,
+      totals: totals,
+      stats: {
+        rowsA: ra.length, rowsB: rb.length,
+        matched: count('matched'), matchedNoKey: count('matched_no_key'), mismatch: count('mismatch'),
+        missingInB: count('missing_in_b'), missingInA: count('missing_in_a'),
+        duplicatesA: dupA, duplicatesB: dupB
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // suggest a mapping from the two sheets
+  // ---------------------------------------------------------------------------
+  var ROLES = {
+    key: /(^|\b)(id|ref|reference|referenz|tx|txid|tx id|tx hash|txn|hash|transaction id|transaction|trade id|order id|invoice|rechnung|beleg|booking|buchung|external id)(\b|$)/i,
+    amount: /(amount|amt|quantity|qty|value|betrag|summe|net|gross|volume|balance|saldo)/i,
+    date: /(date|datum|time|timestamp|settled|booked|created|value date|valuta|executed)/i,
+    group: /(asset|coin|currency|ccy|währung|token|symbol|instrument|account|konto|wallet)/i
+  };
+
+  function profile(side) {
+    var hs = side.headers.map(function (h) { return String(h).trim(); });
+    return hs.map(function (h, c) {
+      var vals = side.rows.map(function (r) { return r[c]; }).filter(function (v) { return !blank(v); });
+      var n = vals.length || 1;
+      var nums = vals.filter(function (v) { return !isNaN(E.toNumber(v)); }).length / n;
+      var dates = vals.filter(function (v) { return !!E.toDate(v); }).length / n;
+      var set = {};
+      vals.forEach(function (v) { set[normKey(v)] = true; });
+      var distinct = Object.keys(set).length;
+      return { name: h, c: c, filled: vals.length, nums: nums, dates: dates, distinctRatio: distinct / n, distinct: distinct, set: set };
+    });
+  }
+
+  function overlap(pa, pb) {
+    var small = pa.distinct < pb.distinct ? pa : pb, big = small === pa ? pb : pa;
+    if (!small.distinct) return 0;
+    var hit = 0;
+    for (var k in small.set) if (big.set[k]) hit++;
+    return hit / small.distinct;
+  }
+
+  function nameScore(a, b, role) {
+    var x = a.toLowerCase(), y = b.toLowerCase();
+    if (x === y) return 1;
+    if (role && ROLES[role].test(a) && ROLES[role].test(b)) return 0.7;
+    var ta = x.split(/[^a-z0-9äöü]+/).filter(Boolean), tb = y.split(/[^a-z0-9äöü]+/).filter(Boolean);
+    var common = ta.filter(function (t) { return tb.indexOf(t) > -1; }).length;
+    return common ? 0.4 + 0.2 * common / Math.max(ta.length, tb.length) : 0;
+  }
+
+  function suggestMapping(A, B) {
+    var pa = profile(A), pb = profile(B);
+    var cfg = { keys: [], compares: [], group: null, amount: null, fallback: true };
+    if (!pa.length || !pb.length) return cfg;
+
+    // key: mostly-distinct columns whose values overlap the most
+    var best = null;
+    pa.forEach(function (x) {
+      if (x.distinctRatio < 0.9 || x.filled < 2) return;
+      pb.forEach(function (y) {
+        if (y.distinctRatio < 0.9 || y.filled < 2) return;
+        if (x.nums > 0.9 && y.nums > 0.9 && !(ROLES.key.test(x.name) || ROLES.key.test(y.name))) return; // amounts, not IDs
+        if (x.dates > 0.9 || y.dates > 0.9) return;
+        var s = overlap(x, y) + 0.3 * nameScore(x.name, y.name, 'key');
+        if (!best || s > best.s) best = { s: s, a: x.name, b: y.name };
+      });
+    });
+    if (best && best.s >= 0.35) cfg.keys.push({ a: best.a, b: best.b });
+
+    function pick(role, test) {
+      var bestP = null;
+      pa.forEach(function (x) {
+        if (!test(x)) return;
+        pb.forEach(function (y) {
+          if (!test(y)) return;
+          var s = nameScore(x.name, y.name, role) + (ROLES[role].test(x.name) ? 0.2 : 0) + (ROLES[role].test(y.name) ? 0.2 : 0);
+          if (role === 'group') s += overlap(x, y);
+          if (!bestP || s > bestP.s) bestP = { s: s, a: x.name, b: y.name };
+        });
+      });
+      return bestP && bestP.s >= 0.4 ? bestP : null;
+    }
+    var used = function (n, side) { return cfg.keys.some(function (k) { return k[side] === n; }); };
+    var amt = pick('amount', function (p) { return p.nums >= 0.9 && p.dates < 0.5 && !used(p.name, p === pa[p.c] ? 'a' : 'b'); });
+    var dt = pick('date', function (p) { return p.dates >= 0.9; });
+    var grp = pick('group', function (p) { return p.nums < 0.5 && p.dates < 0.5 && p.distinct <= 30 && p.distinctRatio < 0.5; });
+
+    if (amt) {
+      var tol = 0.005;
+      var decimals = function (side, name) {
+        var c = colIndex(side.headers, name), max = 0;
+        side.rows.forEach(function (r) {
+          var n = E.toNumber(r[c]);
+          if (isNaN(n)) return;
+          var s = String(n), d = s.indexOf('.') > -1 ? s.length - s.indexOf('.') - 1 : 0;
+          if (/e-/.test(s)) d = 10;
+          max = Math.max(max, d);
+        });
+        return max;
+      };
+      var dp = Math.max(decimals(A, amt.a), decimals(B, amt.b));
+      if (dp > 2) tol = 0;
+      // opposite signs (ledger debit vs statement credit) → compare absolute values
+      var sumSign = function (side, name) {
+        var c = colIndex(side.headers, name), neg = 0, tot = 0;
+        side.rows.forEach(function (r) { var n = E.toNumber(r[c]); if (!isNaN(n) && n !== 0) { tot++; if (n < 0) neg++; } });
+        return tot ? neg / tot : 0;
+      };
+      // Sign convention: compare the pairs that share an ID. Bank exports often show
+      // an outgoing payment as -100 where the ledger books +100.
+      var flip = false, abs = false;
+      if (cfg.keys.length) {
+        var ka = colIndex(A.headers, cfg.keys[0].a), kb = colIndex(B.headers, cfg.keys[0].b);
+        var ca = colIndex(A.headers, amt.a), cb = colIndex(B.headers, amt.b), byKey = {};
+        B.rows.forEach(function (r) { var k = normKey(r[kb]); if (k && !(k in byKey)) byKey[k] = E.toNumber(r[cb]); });
+        var same = 0, opp = 0;
+        A.rows.forEach(function (r) {
+          var k = normKey(r[ka]), na = E.toNumber(r[ca]);
+          if (!k || !(k in byKey) || isNaN(na) || isNaN(byKey[k]) || na === 0) return;
+          if (Math.abs(na - byKey[k]) <= tol + 1e-12) same++;
+          else if (Math.abs(na + byKey[k]) <= tol + 1e-12) opp++;
+        });
+        flip = opp > same;
+      } else {
+        abs = Math.abs(sumSign(A, amt.a) - sumSign(B, amt.b)) > 0.6;
+      }
+      cfg.compares.push({ a: amt.a, b: amt.b, type: 'number', tol: tol, abs: abs, flip: flip });
+      cfg.amount = { a: amt.a, b: amt.b, abs: abs, flip: flip };
+    }
+    if (grp) { cfg.compares.push({ a: grp.a, b: grp.b, type: 'text' }); cfg.group = { a: grp.a, b: grp.b }; }
+    if (dt) cfg.compares.push({ a: dt.a, b: dt.b, type: 'date', tol: 1 });
+    return cfg;
+  }
+
+  return { reconcile: reconcile, suggestMapping: suggestMapping, compareField: compareField, normKey: normKey };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = Recon;
+
+/**
+ * Recon — sample data: an internal ledger vs. a custody statement for crypto
+ * withdrawals and deposits, with planted breaks.
+ */
+var ReconSample = (function () {
+  'use strict';
+  function build(now) {
+    now = now || new Date();
+    var d = function (off) { return new Date(now.getFullYear(), now.getMonth(), now.getDate() + off); };
+    var h = function (n) { return '0x' + (n * 2654435761 >>> 0).toString(16).padStart(8, '0') + 'a4f9c2' + String(n).padStart(4, '0'); };
+
+    var ledger = [['Tx hash', 'Asset', 'Amount', 'Booked date', 'Wallet', 'Note']];
+    var statement = [['Transaction ID', 'Coin', 'Quantity', 'Settled at', 'Fee']];
+    var tx = [
+      [1, 'BTC', 0.52, -14], [2, 'ETH', 12.4, -13], [3, 'USDC', 25000, -13], [4, 'BTC', -0.15, -12], [5, 'ETH', 3.1, -11],
+      [6, 'USDC', -1200, -10], [7, 'BTC', 1.002, -9], [8, 'ETH', -0.75, -8], [9, 'USDC', 8800, -7], [10, 'BTC', 0.0375, -6],
+      [11, 'ETH', 5.25, -5], [12, 'USDC', 15000, -4], [13, 'BTC', -0.3, -3], [14, 'ETH', 2.2, -2], [15, 'USDC', 4100, -1]
+    ];
+    tx.forEach(function (t) {
+      var wallet = t[1] === 'BTC' ? 'Cold 1' : t[1] === 'ETH' ? 'Hot 2' : 'Hot 3';
+      ledger.push([h(t[0]), t[1], t[2], d(t[3]), wallet, '']);
+      statement.push([h(t[0]).toUpperCase().replace(/^0X/, ''), t[1], t[2], d(t[3] + (t[0] % 4 === 0 ? 1 : 0)), t[1] === 'USDC' ? 2 : 0.0001]);
+    });
+
+    // planted breaks
+    statement[3][2] = 24990;                         // USDC amount differs by -10
+    statement[5][3] = d(-11 + 3);                    // ETH settled 3 days later (tolerance 1)
+    statement[8][1] = 'WETH';                        // asset differs
+    statement.splice(10, 1);                         // tx 10 missing on the statement
+    statement.push([h(99), 'ETH', 0.9, d(-2), 0.0001]);   // on the statement, never booked
+    ledger.push([h(12), 'USDC', 15000, d(-4), 'Hot 3', 'booked twice']);   // duplicate booking
+    statement.push(['', 'BTC', 0.25, d(-1), 0.0001]);     // custody row without ID ...
+    ledger.push(['', 'BTC', 0.25, d(-1), 'Cold 1', 'manual entry']);       // ... matches a ledger row without ID
+
+    return {
+      a: { name: 'Internal ledger', rows: ledger },
+      b: { name: 'Custody statement', rows: statement }
+    };
+  }
+  return { build: build };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = ReconSample;
+
+/**
+ * Recon — builds the reconciliation workbook (.xlsx) and a breaks CSV.
+ * Uses the dependency-free xlsx writer in vendor/sheet-io.js (SheetIO.buildXlsx).
+ */
+var ReconExport = (function () {
+  'use strict';
+  var E = SheetEngine, W = SheetIO;
+
+  var LABEL = {
+    mismatch: 'Break', missing_in_b: 'Missing in B', missing_in_a: 'Missing in A',
+    matched_no_key: 'Matched without ID', matched: 'Matched', duplicate: 'Duplicate'
+  };
+
+  function v(x) { return x === undefined || x === null ? '' : x; }
+  function isDate(x) { return Object.prototype.toString.call(x) === '[object Date]'; }
+  function cell(x) { return isDate(x) ? x : (typeof x === 'number' || typeof x === 'boolean') ? x : String(v(x)); }
+
+  function explain(res) {
+    if (res.status === 'mismatch') return res.diffs.map(function (d) { return d.field + ': ' + d.note; }).join('; ');
+    if (res.status === 'missing_in_b') return res.a && res.a.duplicate ? 'Booked twice in A; this copy has no counterpart in B' : 'In A, not found in B';
+    if (res.status === 'missing_in_a') return res.b && res.b.duplicate ? 'Appears twice in B; this copy has no counterpart in A' : 'In B, not found in A';
+    if (res.status === 'matched_no_key') return 'No matching ID; paired on values';
+    if (res.status === 'duplicate') return 'Same ID appears more than once on this side';
+    return '';
+  }
+
+  function head(rows, styles, r, n) { for (var c = 0; c < n; c++) styles[r + ',' + c] = 'head'; }
+
+  function build(A, B, cfg, out, meta) {
+    meta = meta || {};
+    var sheets = [];
+    var st = out.stats;
+
+    // Summary
+    var sum = [
+      ['Reconciliation', ''],
+      ['Side A', A.name], ['Side B', B.name],
+      ['Matched on', (cfg.keys || []).map(function (k) { return k.a + ' = ' + k.b; }).join(', ') || 'values only'],
+      ['Compared', (cfg.compares || []).map(function (c) {
+        return c.a + ' = ' + c.b + (c.type === 'number' && c.tol ? ' (±' + c.tol + ')' : '') + (c.type === 'date' && c.tol ? ' (±' + c.tol + ' days)' : '') + (c.abs ? ' (sign ignored)' : '') + (c.flip ? ' (opposite sign)' : '');
+      }).join(', ')],
+      ['Run at', meta.ranAt || new Date()],
+      ['', ''],
+      ['Rows in A', st.rowsA], ['Rows in B', st.rowsB],
+      ['Matched', st.matched], ['Matched without ID', st.matchedNoKey], ['Breaks', st.mismatch],
+      ['Missing in B', st.missingInB], ['Missing in A', st.missingInA],
+      ['Duplicates in A', st.duplicatesA], ['Duplicates in B', st.duplicatesB]
+    ];
+    var sumStyles = { '0,0': 'head', '0,1': 'head' };
+    [11, 12, 13].forEach(function (r) { if (sum[r][1]) sumStyles[r + ',1'] = 'err'; });
+    [14, 15].forEach(function (r) { if (sum[r][1]) sumStyles[r + ',1'] = 'warn'; });
+    sheets.push({ name: 'Summary', rows: sum, styles: sumStyles, widths: [22, 70] });
+
+    // Totals
+    if (out.totals) {
+      var tot = [[cfg.group ? cfg.group.a + ' / ' + cfg.group.b : 'Group', 'Total A', 'Total B', 'Difference (B − A)', 'Rows A', 'Rows B']];
+      var tStyles = {};
+      head(tot, tStyles, 0, 6);
+      out.totals.forEach(function (t, i) {
+        tot.push([t.group, t.a, t.b, t.diff, t.countA, t.countB]);
+        if (t.diff !== 0) tStyles[(i + 1) + ',3'] = 'err';
+      });
+      sheets.push({ name: 'Totals', rows: tot, styles: tStyles, freezeRow: 1, widths: [18, 16, 16, 18, 9, 9] });
+    }
+
+    // Exceptions (everything that is not a clean match), then duplicates
+    var keyA = (cfg.keys || [])[0] ? cfg.keys[0].a : '';
+    var exc = [['Status', 'A row', 'B row', 'Key', 'Explanation']];
+    var compCols = (cfg.compares || []);
+    compCols.forEach(function (c) { exc[0].push('A: ' + c.a, 'B: ' + c.b); });
+    var eStyles = {}, links = [];
+    head(exc, eStyles, 0, exc[0].length);
+    var ia = function (name) { return A.headers.map(function (h) { return String(h).trim().toLowerCase(); }).indexOf(String(name).trim().toLowerCase()); };
+    var ib = function (name) { return B.headers.map(function (h) { return String(h).trim().toLowerCase(); }).indexOf(String(name).trim().toLowerCase()); };
+    var kA = keyA ? ia(keyA) : -1, kB = keyA ? ib(cfg.keys[0].b) : -1;
+    var list = out.results.filter(function (r) { return r.status !== 'matched'; }).concat(out.duplicates);
+    list.forEach(function (res) {
+      var key = res.a && kA >= 0 ? res.a.r[kA] : res.b && kB >= 0 ? res.b.r[kB] : '';
+      var row = [LABEL[res.status], res.a ? res.a.row : '', res.b ? res.b.row : '', cell(key), explain(res)];
+      compCols.forEach(function (c) {
+        row.push(res.a ? cell(res.a.r[ia(c.a)]) : '', res.b ? cell(res.b.r[ib(c.b)]) : '');
+      });
+      var r = exc.length;
+      exc.push(row);
+      eStyles[r + ',0'] = res.status === 'matched_no_key' || res.status === 'duplicate' ? 'warn' : 'err';
+      if (res.status === 'mismatch') {
+        res.diffs.forEach(function (d) {
+          var k = compCols.findIndex(function (c) { return (c.a === c.b ? c.a : c.a + ' / ' + c.b) === d.field; });
+          if (k > -1) { eStyles[r + ',' + (5 + 2 * k)] = 'err'; eStyles[r + ',' + (6 + 2 * k)] = 'err'; }
+        });
+      }
+    });
+    if (exc.length === 1) exc.push(['No breaks', '', '', '', 'Both sides agree']);
+    sheets.push({ name: 'Breaks', rows: exc, styles: eStyles, freezeRow: 1, widths: [18, 7, 7, 30, 46].concat(compCols.map(function () { return 16; }).concat(compCols.map(function () { return 16; }))) });
+
+    // Matched pairs
+    var mat = [['A row', 'B row', 'Key', 'How']];
+    var mStyles = {};
+    head(mat, mStyles, 0, 4);
+    out.results.filter(function (r) { return r.status === 'matched' || r.status === 'matched_no_key'; }).forEach(function (res) {
+      mat.push([res.a.row, res.b.row, cell(kA >= 0 ? res.a.r[kA] : ''), res.via === 'key' ? 'ID' : 'Values']);
+    });
+    sheets.push({ name: 'Matched', rows: mat, styles: mStyles, freezeRow: 1, widths: [7, 7, 30, 8] });
+
+    // The two sides, with problem cells colored
+    function sideSheet(S, which) {
+      var rows = [S.headers.slice()].concat(S.rows);
+      var styles = {};
+      head(rows, styles, 0, S.headers.length);
+      var first = S.firstDataRow || 2;
+      function mark(rec, cols, style) {
+        if (!rec) return;
+        var r = rec.row - first + 1;
+        cols.forEach(function (c) { if (c >= 0 && styles[r + ',' + c] !== 'err') styles[r + ',' + c] = style; });
+      }
+      var all = which === 'a' ? function (res) { return res.a; } : function (res) { return res.b; };
+      var idx = which === 'a' ? ia : ib;
+      out.results.forEach(function (res) {
+        var rec = all(res);
+        if (!rec) return;
+        if (res.status === 'missing_in_b' || res.status === 'missing_in_a') mark(rec, S.headers.map(function (h, c) { return c; }), 'err');
+        else if (res.status === 'mismatch') {
+          res.diffs.forEach(function (d) { mark(rec, [which === 'a' ? d.colA : d.colB], 'err'); });
+        } else if (res.status === 'matched_no_key') mark(rec, [kA >= 0 && which === 'a' ? kA : kB], 'warn');
+      });
+      out.duplicates.forEach(function (res) { mark(all(res), [which === 'a' ? kA : kB], 'warn'); });
+      return { name: S.name, rows: rows, styles: styles, freezeRow: 1, widths: S.headers.map(function (h) { return Math.max(10, String(h).length + 4); }) };
+    }
+    sheets.push(sideSheet(A, 'a'), sideSheet(B, 'b'));
+    return W.buildXlsx(sheets).bytes;
+  }
+
+  function breaksCsv(A, B, cfg, out) {
+    var q = function (x) {
+      var s = isDate(x) ? E.display(x) : String(v(x));
+      if (/^[=+\-@]/.test(s)) s = "'" + s;
+      return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    var lines = [['Status', 'A row', 'B row', 'Explanation'].join(',')];
+    out.results.filter(function (r) { return r.status !== 'matched'; }).concat(out.duplicates).forEach(function (res) {
+      lines.push([LABEL[res.status], res.a ? res.a.row : '', res.b ? res.b.row : '', explain(res)].map(q).join(','));
+    });
+    return '﻿' + lines.join('\r\n');
+  }
+
+  return { build: build, breaksCsv: breaksCsv, explain: explain, LABEL: LABEL };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = ReconExport;
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var E = SheetEngine, W = SheetIO;
+  var PAGE = 200;
+  var EXCEL = ['xlsx', 'xlsm', 'xlsb', 'xls', 'xltx', 'xltm', 'xlt', 'ods', 'fods'], TEXT = ['csv', 'tsv', 'txt'];
+
+  // side: { file, format, sheets: [{name, rows, headerRow, textInput}], idx, sample }
+  var state = { a: null, b: null, cfg: null, out: null, filter: 'breaks', shown: PAGE, problem: '', note: '' };
+  var downloads;
+
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'class') e.className = attrs[k];
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), attrs[k]);
+      else if (attrs[k] !== false && attrs[k] != null) e.setAttribute(k, attrs[k] === true ? '' : attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function plural(n, w) { return n.toLocaleString() + ' ' + w + (n === 1 ? '' : 's'); }
+  function store(k, v) {
+    try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); localStorage.setItem(k, JSON.stringify(v)); }
+    catch (e) { return null; }
+  }
+  function fmtNum(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '';
+    return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 8 });
+  }
+
+  // ---------------------------------------------------------------------------
+  // sides
+  // ---------------------------------------------------------------------------
+  function sheetOf(s) { return s.sheets[s.idx]; }
+  function sideData(s) {
+    var sh = sheetOf(s);
+    var width = sh.rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+    return {
+      name: s.sample ? s.label : (s.sheets.length > 1 || s.sameFile ? sh.name : s.file.replace(/\.[^.]+$/, '')),
+      headers: W.namedHeaders(sh.rows[sh.headerRow] || [], width),
+      rows: W.dataOnly(sh.rows, sh.headerRow),
+      firstDataRow: sh.headerRow + 2,
+      textInput: sh.textInput
+    };
+  }
+  function signature() {
+    return ['a', 'b'].map(function (k) { return sideData(state[k]).headers.join('|'); }).join('||');
+  }
+
+  function loadSample() {
+    var s = ReconSample.build(new Date());
+    state.a = { file: 'Sample', format: 'sample', sample: true, label: s.a.name, sheets: [{ name: s.a.name, rows: s.a.rows, headerRow: 0 }], idx: 0 };
+    state.b = { file: 'Sample', format: 'sample', sample: true, label: s.b.name, sheets: [{ name: s.b.name, rows: s.b.rows, headerRow: 0 }], idx: 0 };
+    state.note = '';
+    remap(true);
+  }
+
+  function ext(n) { var m = /\.([^.]+)$/.exec(n || ''); return m ? m[1].toLowerCase() : ''; }
+
+  function readFile(file) {
+    var x = ext(file.name);
+    if (TEXT.indexOf(x) > -1) {
+      return file.arrayBuffer().then(function (buf) {
+        var t = new TextDecoder('utf-8').decode(buf);
+        if (t.indexOf('\uFFFD') > -1) { try { t = new TextDecoder('windows-1252').decode(buf); } catch (e) { /* keep */ } }
+        return [{ name: file.name.replace(/\.[^.]+$/, '').slice(0, 31) || 'Data', rows: W.parseCsv(t).rows, textInput: true }];
+      });
+    }
+    if (EXCEL.indexOf(x) > -1 || !x) {
+      if (!window.XLSX) return Promise.reject(new Error('the Excel reader did not load. Check your connection and reload, or save the sheet as CSV'));
+      return file.arrayBuffer().then(function (buf) {
+        var wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellNF: true });
+        var d1904 = !!(wb.Workbook && wb.Workbook.WBProps && wb.Workbook.WBProps.date1904);
+        return wb.SheetNames.map(function (n) { return { name: n, rows: W.sheetToRows(XLSX, wb.Sheets[n], d1904), textInput: false }; });
+      });
+    }
+    return Promise.reject(new Error('it is not a spreadsheet. Use .xlsx, .xls, .ods or .csv'));
+  }
+
+  function openInto(which, file) {
+    state.problem = '';
+    renderBanner('Reading ' + file.name + '…');
+    readFile(file).then(function (sheets) {
+      sheets = sheets.filter(function (s) { return s.rows.some(function (r) { return r.some(function (v) { return v !== '' && v != null; }); }); });
+      if (!sheets.length) throw new Error('it has no data');
+      sheets.forEach(function (s) { s.headerRow = W.detectHeaderRow(s.rows); });
+      var other = which === 'a' ? 'b' : 'a';
+      state[which] = { file: file.name, format: ext(file.name), sheets: sheets, idx: 0 };
+      state.note = '';
+      // One workbook with two or more sheets: use the next sheet for the other side if it still shows the sample.
+      if (sheets.length > 1 && state[other].sample) {
+        state[other] = { file: file.name, format: ext(file.name), sheets: sheets, idx: 1, sameFile: true };
+        state[which].sameFile = true;
+        state.note = file.name + ' has ' + sheets.length + ' sheets, so Recon put "' + sheets[0].name + '" on side ' + which.toUpperCase() + ' and "' + sheets[1].name + '" on side ' + other.toUpperCase() + '. Change either below.';
+      } else if (state[other].sample) {
+        state.note = 'Side ' + which.toUpperCase() + ' loaded. Now open the file for side ' + other.toUpperCase() + '; until then it still shows sample data.';
+      }
+      remap(false);
+    }).catch(function (e) {
+      state.problem = 'Could not read "' + file.name + '": ' + (e && e.message || e) + '.';
+      render();
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // mapping + running
+  // ---------------------------------------------------------------------------
+  function remap(force) {
+    var A = sideData(state.a), B = sideData(state.b);
+    var saved = !force && !state.a.sample && !state.b.sample ? store('recon.map.' + signature()) : null;
+    state.cfg = saved || Recon.suggestMapping(A, B);
+    state.cfgFrom = saved ? 'saved' : 'suggested';
+    if (!state.cfg.keys.length && !state.cfg.compares.length) {
+      var ha = A.headers, hb = B.headers;
+      if (ha.length && hb.length) state.cfg.keys.push({ a: ha[0], b: hb[0] });
+    }
+    state.filter = 'breaks'; state.shown = PAGE;
+    run();
+  }
+
+  function run() {
+    var A = sideData(state.a), B = sideData(state.b);
+    state.A = A; state.B = B;
+    state.out = Recon.reconcile(A, B, state.cfg);
+    if (!state.a.sample && !state.b.sample) store('recon.map.' + signature(), state.cfg);
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // rendering
+  // ---------------------------------------------------------------------------
+  function render() { renderBanner(); renderSources(); renderSetup(); renderResults(); }
+
+  function renderBanner(text) {
+    var b = $('banner');
+    b.innerHTML = '';
+    if (text) { b.className = 'note'; b.textContent = text; return; }
+    if (state.problem) { b.className = 'note problem'; b.textContent = state.problem; return; }
+    if (state.note) { b.className = 'note sample'; b.textContent = state.note; return; }
+    if (state.a.sample && state.b.sample) {
+      b.className = 'note sample';
+      b.appendChild(el('b', { text: 'Sample data: ' }));
+      b.appendChild(document.createTextNode('an internal crypto ledger against a custody statement, with a short amount, a late settlement, a wrong asset, a missing and an unbooked transaction, a double booking and a row without an ID. Open your own files for side A and B, or one workbook that has both sheets.'));
+      return;
+    }
+    b.className = 'note';
+    b.textContent = state.cfgFrom === 'saved' ? 'Matching setup restored from the last time you reconciled files with these columns.' : 'Recon suggested how to match these files from their columns and values. Check “How to match” below.';
+  }
+
+  function renderSources() {
+    ['a', 'b'].forEach(function (k) {
+      var s = state[k], box = $(k === 'a' ? 'srcA' : 'srcB');
+      var sh = sheetOf(s);
+      box.innerHTML = '';
+      var data = k === 'a' ? state.A : state.B;
+      box.appendChild(el('div', { class: 'head' }, [
+        el('span', { class: 'tag', text: 'Side ' + k.toUpperCase() }),
+        el('button', { type: 'button', class: 'btn small', text: s.sample ? 'Open file for ' + k.toUpperCase() : 'Open another file', onclick: function () { $(k === 'a' ? 'fileA' : 'fileB').click(); } })
+      ]));
+      box.appendChild(el('div', { class: 'file', text: s.sample ? s.label + ' (sample)' : s.file }));
+      var ctl = el('div', { class: 'ctl' });
+      var sel = el('select', { id: 'sheet' + k, 'aria-label': 'Sheet for side ' + k.toUpperCase(), disabled: s.sheets.length < 2 ? true : false });
+      s.sheets.forEach(function (x, i) { sel.appendChild(el('option', { value: i, text: x.name })); });
+      sel.value = s.idx;
+      sel.addEventListener('change', function () { s.idx = +this.value; state.note = ''; remap(false); });
+      var hr = el('input', { type: 'number', id: 'hdr' + k, min: '1', value: sh.headerRow + 1, 'aria-label': 'Header row for side ' + k.toUpperCase() });
+      hr.addEventListener('change', function () {
+        var v = Math.round(+this.value) - 1;
+        if (isNaN(v)) return;
+        sh.headerRow = Math.max(0, Math.min(sh.rows.length - 1, v));
+        remap(false);
+      });
+      ctl.appendChild(el('label', { class: 'lbl' }, ['Sheet', sel]));
+      ctl.appendChild(el('label', { class: 'lbl' }, ['Header row', hr]));
+      box.appendChild(ctl);
+      var n = data ? data.rows.filter(function (r) { return r.some(function (v) { return v !== '' && v != null; }); }).length : 0;
+      box.appendChild(el('div', { class: 'meta', text: plural(n, 'row') + ' · ' + plural(data ? data.headers.length : 0, 'column') }));
+    });
+  }
+
+  function options(sel, headers, value, allowNone) {
+    sel.innerHTML = '';
+    if (allowNone) sel.appendChild(el('option', { value: '', text: '(none)' }));
+    headers.forEach(function (h) { sel.appendChild(el('option', { value: h, text: h })); });
+    sel.value = value || '';
+    return sel;
+  }
+
+  function renderSetup() {
+    var A = state.A, B = state.B, cfg = state.cfg;
+    var keys = $('keys'); keys.innerHTML = '';
+    cfg.keys.forEach(function (k, i) {
+      var sa = options(el('select', { class: 'a', 'aria-label': 'Match column in A' }), A.headers, k.a);
+      var sb = options(el('select', { class: 'b', 'aria-label': 'Match column in B' }), B.headers, k.b);
+      sa.addEventListener('change', function () { k.a = this.value; run(); });
+      sb.addEventListener('change', function () { k.b = this.value; run(); });
+      keys.appendChild(el('div', { class: 'pair key' }, [sa, el('span', { class: 'eq', text: '=' }), sb,
+        el('button', { type: 'button', class: 'icon-btn', text: '✕', 'aria-label': 'Remove', onclick: function () { cfg.keys.splice(i, 1); run(); } })]));
+    });
+    if (!cfg.keys.length) keys.appendChild(el('div', { class: 'muted', style: 'font-size:14px', text: 'No ID column: rows are paired when all compared values agree.' }));
+    $('keyHint').textContent = cfg.keys.length ? 'IDs are matched ignoring case, spaces and a leading 0x.' : '';
+
+    var cmps = $('compares'); cmps.innerHTML = '';
+    cfg.compares.forEach(function (c, i) {
+      var sa = options(el('select', { class: 'a', 'aria-label': 'Column in A' }), A.headers, c.a);
+      var sb = options(el('select', { class: 'b', 'aria-label': 'Column in B' }), B.headers, c.b);
+      var type = el('select', { 'aria-label': 'Compare as' });
+      [['number', 'Number'], ['date', 'Date'], ['text', 'Text']].forEach(function (t) { type.appendChild(el('option', { value: t[0], text: t[1] })); });
+      type.value = c.type;
+      var tol = el('input', { type: 'number', min: '0', step: 'any', value: c.tol || 0, 'aria-label': c.type === 'date' ? 'Tolerance in days' : 'Tolerance', title: c.type === 'date' ? 'Allowed difference in days' : 'Allowed difference', disabled: c.type === 'text' ? true : false });
+      var sign = el('select', { 'aria-label': 'Sign convention', title: 'Bank exports often show a payment as −100 where the ledger books +100', disabled: c.type !== 'number' ? true : false });
+      [['same', 'Same sign'], ['flip', 'Opposite sign'], ['abs', 'Ignore sign']].forEach(function (t) { sign.appendChild(el('option', { value: t[0], text: t[1] })); });
+      sign.value = c.flip ? 'flip' : c.abs ? 'abs' : 'same';
+      sa.addEventListener('change', function () { c.a = this.value; run(); });
+      sb.addEventListener('change', function () { c.b = this.value; run(); });
+      type.addEventListener('change', function () { c.type = this.value; c.tol = this.value === 'date' ? 1 : 0; run(); });
+      tol.addEventListener('change', function () { c.tol = Math.max(0, +this.value || 0); run(); });
+      sign.addEventListener('change', function () {
+        c.flip = this.value === 'flip'; c.abs = this.value === 'abs';
+        if (cfg.amount && cfg.amount.a === c.a && cfg.amount.b === c.b) { cfg.amount.flip = c.flip; cfg.amount.abs = c.abs; }
+        run();
+      });
+      cmps.appendChild(el('div', { class: 'pair' }, [sa, el('span', { class: 'eq', text: '=' }), sb, type,
+        el('label', { class: 'lbl tol', style: 'display:flex;gap:4px;align-items:center' + (c.type === 'text' ? ';visibility:hidden' : '') }, [c.type === 'date' ? '± days' : '±', tol]),
+        c.type === 'number' ? sign : el('span', { 'aria-hidden': 'true' }),
+        el('button', { type: 'button', class: 'icon-btn', text: '✕', 'aria-label': 'Remove', onclick: function () { cfg.compares.splice(i, 1); run(); } })]));
+    });
+
+    options($('amtA'), A.headers, cfg.amount && cfg.amount.a, true);
+    options($('amtB'), B.headers, cfg.amount && cfg.amount.b, true);
+    options($('grpA'), A.headers, cfg.group && cfg.group.a, true);
+    options($('grpB'), B.headers, cfg.group && cfg.group.b, true);
+    $('fallback').checked = !!cfg.fallback;
+  }
+
+  var FILTERS = [
+    ['breaks', 'All breaks', function (r) { return r.status !== 'matched'; }],
+    ['mismatch', 'Value breaks', function (r) { return r.status === 'mismatch'; }],
+    ['missing_in_b', 'Missing in B', function (r) { return r.status === 'missing_in_b'; }],
+    ['missing_in_a', 'Missing in A', function (r) { return r.status === 'missing_in_a'; }],
+    ['duplicate', 'Duplicates', function (r) { return r.status === 'duplicate'; }],
+    ['matched_no_key', 'Paired without ID', function (r) { return r.status === 'matched_no_key'; }],
+    ['matched', 'Matched', function (r) { return r.status === 'matched'; }]
+  ];
+
+  function listFor(f) {
+    var out = state.out;
+    var all = out.results.concat(out.duplicates);
+    var def = FILTERS.filter(function (x) { return x[0] === f; })[0];
+    return all.filter(def[2]);
+  }
+
+  function renderResults() {
+    var out = state.out;
+    var pb = $('problems');
+    if (out.problems && out.problems.length) {
+      pb.hidden = false; pb.textContent = out.problems.join(' ');
+      ['tiles', 'totals', 'items', 'filters', 'totFoot'].forEach(function (id) { $(id).innerHTML = ''; });
+      return;
+    }
+    pb.hidden = true;
+    var st = out.stats;
+    var tiles = $('tiles'); tiles.innerHTML = '';
+    [['matched', st.matched + st.matchedNoKey, 'matched', 'ok'],
+     ['mismatch', st.mismatch, 'value breaks', st.mismatch ? 'err' : 'ok'],
+     ['missing_in_b', st.missingInB, 'in A, missing in B', st.missingInB ? 'err' : 'ok'],
+     ['missing_in_a', st.missingInA, 'in B, missing in A', st.missingInA ? 'err' : 'ok'],
+     ['duplicate', st.duplicatesA + st.duplicatesB, 'duplicate IDs', st.duplicatesA + st.duplicatesB ? 'warn' : 'ok']
+    ].forEach(function (t) {
+      tiles.appendChild(el('button', { type: 'button', class: 'tile ' + t[3], 'aria-pressed': String(state.filter === t[0]),
+        onclick: function () { state.filter = t[0]; state.shown = PAGE; renderResults(); } }, [el('b', { text: t[1].toLocaleString() }), el('span', { text: t[2] })]));
+    });
+
+    // totals
+    var tw = $('totals'); tw.innerHTML = '';
+    var foot = $('totFoot');
+    if (out.totals && out.totals.length) {
+      var t = el('table', { class: 'totals' });
+      t.appendChild(el('thead', {}, [el('tr', {}, [el('th', { text: state.cfg.group ? state.cfg.group.a : '' }), el('th', { text: 'A' }), el('th', { text: 'B' }), el('th', { text: 'Difference' })])]));
+      var tb = el('tbody');
+      out.totals.forEach(function (x) {
+        tb.appendChild(el('tr', {}, [el('td', { text: x.group }), el('td', { text: fmtNum(x.a) }), el('td', { text: fmtNum(x.b) }),
+          el('td', { class: x.diff === 0 ? 'good' : 'bad', text: x.diff === 0 ? '0 ✓' : (x.diff > 0 ? '+' : '') + fmtNum(x.diff) })]));
+      });
+      t.appendChild(tb);
+      tw.appendChild(t);
+      var off = out.totals.filter(function (x) { return x.diff !== 0; }).length;
+      foot.textContent = off ? plural(off, 'group') + ' out of balance. The breaks list shows the rows behind each difference.' : 'All groups balance.';
+    } else {
+      foot.textContent = 'Choose an amount column under “Totals of” to compare totals.';
+    }
+
+    // filters
+    var fb = $('filters'); fb.innerHTML = '';
+    FILTERS.forEach(function (f) {
+      var n = listFor(f[0]).length;
+      if (!n && f[0] !== 'breaks' && f[0] !== state.filter) return;
+      fb.appendChild(el('button', { type: 'button', 'aria-pressed': String(state.filter === f[0]), text: f[1] + ' ' + n.toLocaleString(),
+        onclick: function () { state.filter = f[0]; state.shown = PAGE; renderResults(); } }));
+    });
+
+    var ul = $('items'); ul.innerHTML = '';
+    var items = listFor(state.filter);
+    if (!items.length) {
+      ul.appendChild(el('li', { class: 'empty', text: state.filter === 'breaks' ? 'No breaks. Both sides agree.' : 'Nothing in this group.' }));
+    } else {
+      items.slice(0, state.shown).forEach(function (res) { ul.appendChild(item(res)); });
+      if (items.length > state.shown) ul.appendChild(el('li', { class: 'more' }, [el('button', { type: 'button', class: 'btn', text: 'Show ' + Math.min(PAGE, items.length - state.shown) + ' more of ' + (items.length - state.shown).toLocaleString(), onclick: function () { state.shown += PAGE; renderResults(); } })]));
+    }
+    renderDownloads();
+  }
+
+  function keyText(res) {
+    var k = state.cfg.keys[0];
+    if (!k) return '';
+    var ia = state.A.headers.indexOf(k.a), ib = state.B.headers.indexOf(k.b);
+    var v = res.a && ia >= 0 ? res.a.r[ia] : res.b && ib >= 0 ? res.b.r[ib] : '';
+    return E.display(v);
+  }
+
+  function item(res) {
+    var cls = res.status === 'matched' ? 'ok' : res.status === 'matched_no_key' || res.status === 'duplicate' ? 'warn' : '';
+    var li = el('li', { class: 'item ' + cls });
+    var key = keyText(res);
+    li.appendChild(el('div', { class: 'line1' }, [
+      el('span', { class: 'badge', text: ReconExport.LABEL[res.status] }),
+      key ? el('span', { class: 'key', text: key }) : el('span', { class: 'key muted', text: 'no ID' }),
+      el('span', { class: 'rows', text: [res.a ? 'A row ' + res.a.row : '', res.b ? 'B row ' + res.b.row : ''].filter(Boolean).join(' · ') })
+    ]));
+    var why = ReconExport.explain(res);
+    if (why && res.status !== 'mismatch') li.appendChild(el('div', { class: 'why', text: why }));
+    // side-by-side compare of the compared columns
+    var cmps = state.cfg.compares;
+    if (cmps.length) {
+      var t = el('table');
+      t.appendChild(el('tr', {}, [el('th', { text: '' }), el('th', { text: 'A' }), el('th', { text: 'B' }), el('th', { text: '' })]));
+      cmps.forEach(function (c) {
+        var ia = state.A.headers.indexOf(c.a), ib = state.B.headers.indexOf(c.b);
+        var field = c.a === c.b ? c.a : c.a + ' / ' + c.b;
+        var d = res.diffs.filter(function (x) { return x.field === field; })[0];
+        t.appendChild(el('tr', { class: d ? 'diff' : '' }, [
+          el('th', { text: field }),
+          el('td', { class: 'a', text: res.a && ia >= 0 ? E.display(res.a.r[ia]) : '—' }),
+          el('td', { class: 'b', text: res.b && ib >= 0 ? E.display(res.b.r[ib]) : '—' }),
+          el('td', { class: 'd', text: d ? d.note : '' })
+        ]));
+      });
+      li.appendChild(el('div', { class: 'cmp' }, [t]));
+    }
+    return li;
+  }
+
+  // ---------------------------------------------------------------------------
+  // downloads
+  // ---------------------------------------------------------------------------
+  function getDownloads() {
+    if (downloads !== undefined) return Promise.resolve(downloads);
+    if (!window.claude || typeof window.claude.use !== 'function') { downloads = 'local'; return Promise.resolve(downloads); }
+    return window.claude.use('downloads').then(function (d) { downloads = d || null; renderDownloads(); return downloads; }, function () { downloads = null; renderDownloads(); return null; });
+  }
+  function renderDownloads() {
+    var none = downloads === null || !!(state.out.problems && state.out.problems.length);
+    $('dlXlsx').disabled = none; $('dlCsv').disabled = none;
+    if (downloads === null) $('dlHint').textContent = 'Downloads are not available in this view. Open the page in a browser to save the workbook.';
+  }
+  function save(name, data, type) {
+    return getDownloads().then(function (d) {
+      if (!d) return;
+      if (d === 'local') {
+        var url = URL.createObjectURL(new Blob([data], { type: type }));
+        var a = el('a', { href: url, download: name });
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        return;
+      }
+      return d.save({ filename: name, data: new Blob([data], { type: type }) }).catch(function (e) {
+        if (e && e.code === 'declined') return;
+        $('dlHint').textContent = 'The file could not be saved here (' + (e && e.code || 'error') + ').';
+      });
+    });
+  }
+  function baseName() {
+    if (state.a.sample && state.b.sample) return 'sample-recon';
+    var n = function (s) { return (s.sameFile ? sheetOf(s).name : s.file.replace(/\.[^.]+$/, '')).replace(/[^\w\- ]+/g, '').trim().slice(0, 30) || 'side'; };
+    return 'recon-' + n(state.a) + '-vs-' + n(state.b);
+  }
+  $('dlXlsx').addEventListener('click', function () {
+    save(baseName() + '.xlsx', ReconExport.build(state.A, state.B, state.cfg, state.out, { ranAt: new Date() }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+  $('dlCsv').addEventListener('click', function () {
+    save(baseName() + '-breaks.csv', ReconExport.breaksCsv(state.A, state.B, state.cfg, state.out), 'text/csv;charset=utf-8');
+  });
+
+  // ---------------------------------------------------------------------------
+  // events
+  // ---------------------------------------------------------------------------
+  ['a', 'b'].forEach(function (k) {
+    $(k === 'a' ? 'fileA' : 'fileB').addEventListener('change', function () { if (this.files[0]) openInto(k, this.files[0]); this.value = ''; });
+  });
+  $('autoMap').addEventListener('click', function () { state.note = ''; remap(true); });
+  $('addKey').addEventListener('click', function () { state.cfg.keys.push({ a: state.A.headers[0], b: state.B.headers[0] }); run(); });
+  $('addCmp').addEventListener('click', function () { state.cfg.compares.push({ a: state.A.headers[0], b: state.B.headers[0], type: 'text', tol: 0 }); run(); });
+  $('fallback').addEventListener('change', function () { state.cfg.fallback = this.checked; run(); });
+  function totalsChanged() {
+    var aa = $('amtA').value, ab = $('amtB').value, ga = $('grpA').value, gb = $('grpB').value;
+    var match = state.cfg.compares.filter(function (c) { return c.a === aa && c.b === ab; })[0] || {};
+    state.cfg.amount = aa && ab ? { a: aa, b: ab, abs: !!match.abs, flip: !!match.flip } : null;
+    state.cfg.group = ga && gb ? { a: ga, b: gb } : null;
+    run();
+  }
+  ['amtA', 'amtB', 'grpA', 'grpB'].forEach(function (id) { $(id).addEventListener('change', totalsChanged); });
+
+  // Drop a file: left half of the window → A, right half → B.
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+    if (files.length >= 2) { openInto('a', files[0]); setTimeout(function () { openInto('b', files[1]); }, 50); return; }
+    openInto(e.clientX < window.innerWidth / 2 ? 'a' : 'b', files[0]);
+  });
+
+  loadSample();
+  if (window.claude && typeof window.claude.use === 'function') getDownloads(); else downloads = 'local';
+})();
+
+</script>
+</body></html>

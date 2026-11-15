@@ -1,0 +1,235 @@
+<title>Recon Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two ledgers facing each other (A left, B right), the matching rules between them, and the breaks below like a reconciliation sheet. */
+:root {
+  --paper: #f2f5f4;
+  --surface: #ffffff;
+  --sunken: #ebf0ee;
+  --ink: #14211e;
+  --muted: #56655f;
+  --line: #d5dfdb;
+  --accent: #11695a;
+  --accent-ink: #ffffff;
+  --accent-soft: #dfefea;
+  --a: #2f5d9c;
+  --a-soft: #e3ebf6;
+  --b: #8a4f1d;
+  --b-soft: #f5e9dc;
+  --err: #b42318;
+  --err-bg: #fde7e4;
+  --warn: #8a5300;
+  --warn-bg: #fff1cc;
+  --ok: #1d7a46;
+  --ok-bg: #e2f4ea;
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1514; --surface: #151f1d; --sunken: #1b2725; --ink: #e3ece9; --muted: #98aaa4; --line: #283633;
+    --accent: #5cc4ae; --accent-ink: #08201b; --accent-soft: #173832;
+    --a: #8db4ec; --a-soft: #1b2a40; --b: #e2a670; --b-soft: #3a2817;
+    --err: #ff8a7a; --err-bg: #3a1b18; --warn: #f2c04d; --warn-bg: #352a10; --ok: #6fd39b; --ok-bg: #163324; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1514; --surface: #151f1d; --sunken: #1b2725; --ink: #e3ece9; --muted: #98aaa4; --line: #283633;
+  --accent: #5cc4ae; --accent-ink: #08201b; --accent-soft: #173832;
+  --a: #8db4ec; --a-soft: #1b2a40; --b: #e2a670; --b-soft: #3a2817;
+  --err: #ff8a7a; --err-bg: #3a1b18; --warn: #f2c04d; --warn-bg: #352a10; --ok: #6fd39b; --ok-bg: #163324; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--f-ui); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-mono); font-size: .86em; }
+.num { font-variant-numeric: tabular-nums; }
+
+.top { background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding-block: 14px; }
+.top h1 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.top h1 span { color: var(--accent); }
+.top p { margin: 0; color: var(--muted); }
+
+.note { margin-top: 16px; border-radius: 8px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--line); background: var(--surface); }
+.note.sample { border-color: var(--accent); background: var(--accent-soft); }
+.note.problem { border-color: var(--err); background: var(--err-bg); color: var(--err); }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { background: var(--sunken); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.small { padding: 4px 9px; font-size: 13px; }
+.icon-btn { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 13px; }
+.icon-btn:hover { color: var(--ink); background: var(--sunken); }
+
+/* sources */
+.sources { display: grid; grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr); gap: 12px; align-items: stretch; margin-top: 16px; }
+@media (max-width: 760px) { .sources { grid-template-columns: minmax(0, 1fr); } .vs { display: none; } }
+.src { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; border-top: 4px solid var(--a); min-width: 0; }
+.src.b { border-top-color: var(--b); }
+.src .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+.tag { font: 600 12px/1 var(--f-mono); padding: 5px 8px; border-radius: 4px; background: var(--a-soft); color: var(--a); }
+.src.b .tag { background: var(--b-soft); color: var(--b); }
+.src .file { font-weight: 600; overflow-wrap: anywhere; }
+.src .meta { font-size: 13px; color: var(--muted); }
+.src .ctl { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 8px; }
+.vs { display: grid; place-items: center; color: var(--muted); font: 600 13px var(--f-mono); }
+label.lbl { display: grid; gap: 4px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+select, input[type=number], input[type=text] { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--surface); min-width: 0; }
+
+/* setup */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel > header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.panel > header h2 { font-size: 16px; font-weight: 600; }
+.setup { margin-top: 16px; }
+.setup .body { padding: 12px 16px; display: grid; gap: 14px; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pairs { display: grid; gap: 8px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 100px 100px 130px 30px; gap: 8px; align-items: center; }
+.pair.key { grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 30px; }
+.pair .eq { text-align: center; color: var(--muted); font-family: var(--f-mono); }
+.pair .chk { display: flex; gap: 6px; align-items: center; font-size: 13px; white-space: nowrap; }
+.pair select.a { border-left: 3px solid var(--a); }
+.pair select.b { border-left: 3px solid var(--b); }
+@media (max-width: 760px) {
+  .pair, .pair.key { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .pair .eq { display: none; }
+}
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; font-size: 14px; }
+.opts label { display: flex; gap: 6px; align-items: center; }
+.opts .grp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.opts .grp select { width: auto; max-width: 180px; }
+
+/* results */
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+@media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tiles .tile:first-child { grid-column: 1 / -1; } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; border-top: 3px solid var(--line); cursor: pointer; text-align: left; }
+.tile:hover { background: var(--sunken); }
+.tile b { display: block; font-size: 28px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 13px; color: var(--muted); }
+.tile.ok { border-top-color: var(--ok); } .tile.ok b { color: var(--ok); }
+.tile.err { border-top-color: var(--err); } .tile.err b { color: var(--err); }
+.tile.warn { border-top-color: var(--warn); } .tile.warn b { color: var(--warn); }
+.tile[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; margin-top: 16px; align-items: start; }
+@media (max-width: 960px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.tbl-wrap { overflow-x: auto; }
+table.totals { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.totals th, table.totals td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.totals th:first-child, table.totals td:first-child { text-align: left; }
+table.totals thead th { font-size: 12px; color: var(--muted); font-weight: 600; }
+table.totals td.bad { color: var(--err); font-weight: 600; }
+table.totals td.good { color: var(--ok); }
+.panel .foot { padding: 10px 16px; font-size: 13px; color: var(--muted); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.items { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow: auto; }
+.item { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; border-left: 4px solid var(--err); }
+.item.warn { border-left-color: var(--warn); }
+.item.ok { border-left-color: var(--ok); }
+.item .line1 { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+.badge { font: 600 11px/1 var(--f-ui); text-transform: uppercase; letter-spacing: .05em; padding: 4px 7px; border-radius: 4px; background: var(--err-bg); color: var(--err); }
+.item.warn .badge { background: var(--warn-bg); color: var(--warn); }
+.item.ok .badge { background: var(--ok-bg); color: var(--ok); }
+.item .key { font-family: var(--f-mono); font-size: 13px; overflow-wrap: anywhere; }
+.item .rows { font-size: 12.5px; color: var(--muted); }
+.item .why { font-weight: 500; }
+.cmp { overflow-x: auto; }
+.cmp table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.cmp th, .cmp td { padding: 3px 10px 3px 0; text-align: left; white-space: nowrap; }
+.cmp th { font-weight: 500; color: var(--muted); font-size: 12px; }
+.cmp td.a { color: var(--a); } .cmp td.b { color: var(--b); }
+.cmp tr.diff td { font-weight: 600; }
+.cmp tr.diff td.d { color: var(--err); }
+.more { padding: 12px 16px; }
+.empty { padding: 28px 16px; text-align: center; color: var(--ok); font-weight: 600; }
+
+.dl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--line); }
+.dl .hint { font-size: 13px; color: var(--muted); }
+footer.foot { padding-block: 20px 32px; color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="top"><div class="wrap">
+  <h1>Recon<span>.</span></h1>
+  <p>Two-sided reconciliation for Excel and CSV: ledger against statement, export against export.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="note" id="banner"></div>
+
+  <div class="sources">
+    <section class="src" id="srcA" aria-label="Side A"></section>
+    <div class="vs">vs</div>
+    <section class="src b" id="srcB" aria-label="Side B"></section>
+  </div>
+
+  <section class="panel setup" aria-labelledby="setupTitle">
+    <header><h2 id="setupTitle">How to match</h2><button class="btn small" id="autoMap" type="button">Suggest again from columns</button></header>
+    <div class="body">
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Match rows on</div>
+        <div class="pairs" id="keys"></div>
+        <div class="row-actions" style="margin-top:8px"><button class="btn small" id="addKey" type="button">+ Add column to the match</button><span class="muted" style="font-size:13px" id="keyHint"></span></div>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:6px">Then compare</div>
+        <div class="pairs" id="compares"></div>
+        <div class="row-actions" style="margin-top:8px"><button class="btn small" id="addCmp" type="button">+ Compare another column</button></div>
+      </div>
+      <div class="opts">
+        <div class="grp"><span>Totals of</span><select id="amtA" aria-label="Amount column A"></select><span>=</span><select id="amtB" aria-label="Amount column B"></select></div>
+        <div class="grp"><span>per</span><select id="grpA" aria-label="Group column A"></select><span>=</span><select id="grpB" aria-label="Group column B"></select></div>
+        <label><input type="checkbox" id="fallback"> Pair rows without a matching ID when all compared values agree</label>
+      </div>
+    </div>
+  </section>
+
+  <div class="note problem" id="problems" hidden></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="totTitle">
+      <header><h2 id="totTitle">Totals</h2><span class="muted" style="font-size:13px">B − A</span></header>
+      <div class="tbl-wrap" id="totals"></div>
+      <div class="foot" id="totFoot"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="brkTitle">
+      <header><h2 id="brkTitle">Breaks</h2><div class="filters" id="filters"></div></header>
+      <ul class="items" id="items"></ul>
+      <div class="dl">
+        <span class="hint" id="dlHint">The workbook has a summary, totals, every break side by side, matched pairs and both sheets with breaks colored.</span>
+        <span style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="dlCsv" type="button">Breaks (.csv)</button>
+          <button class="btn primary" id="dlXlsx" type="button">Recon workbook (.xlsx)</button>
+        </span>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">Files are read in your browser and never uploaded. Opens .xlsx, .xlsm, .xlsb, .xls, .ods, .csv and .tsv. Both sides can be two tabs of one workbook or two separate files.</footer>
+</div>
+
+<input type="file" id="fileA" hidden accept=".xlsx,.xlsm,.xlsb,.xls,.xltx,.ods,.fods,.csv,.tsv,.txt">
+<input type="file" id="fileB" hidden accept=".xlsx,.xlsm,.xlsb,.xls,.xltx,.ods,.fods,.csv,.tsv,.txt">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/*@LIBS@*/
+</script>
+<script>
+/*@APP@*/
+</script>
